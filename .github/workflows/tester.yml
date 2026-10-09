@@ -40,6 +40,19 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Hämta images via Googles spegel av Docker Hub (undviker Docker Hubs gräns för anonyma hämtningar)
+        run: |
+          f=/etc/docker/daemon.json
+          [ -s "$f" ] || echo '{}' | sudo tee "$f" > /dev/null
+          sudo jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' "$f" | sudo tee "$f.new" > /dev/null
+          sudo mv "$f.new" "$f"
+          sudo systemctl restart docker
+          docker info --format '{{.RegistryConfig.Mirrors}}'
+      - name: Hämta basimages (med omförsök)
+        run: |
+          for img in postgres:16-alpine python:3.12-slim; do
+            for i in 1 2 3 4; do docker pull -q "$img" && break; echo "försök $i misslyckades – väntar"; sleep $((i * 15)); done
+          done
       - name: Compose-filerna är giltiga
         env:
           APP_PASSWORD: ci-test-losenord
