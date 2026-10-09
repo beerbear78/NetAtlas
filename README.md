@@ -44,6 +44,7 @@ http://127.0.0.1:8770 och datan sparas krypterad i webbläsaren.
 python tests/test_server_api.py     # inloggning, valv, bilagor, säkerhetskopior
 python tests/test_server_misc.py    # migrering, administration, compose-filer
 python tests/server_harness.py      # prova serverläget i webbläsaren: http://localhost:8783
+bash tests/docker_smoke.sh 192.168.1.0/24 192.168.1.1   # på en Docker-värd: hela Docker-versionen, städar själv
 ```
 
 ## Licens

@@ -30,7 +30,9 @@
 - Serverläge utan Docker: `python tests/test_server_api.py`, `python tests/test_server_misc.py` och
   förhandsgranskningen `netatlas-server` (port 8783, testkonto i `tests/server_harness.py`, TOTP-kod räknas
   fram med `totp_at` i hjälpprogrammet).
-- Docker finns inte på utvecklingsdatorn – riktig verifiering görs på Unraid enligt `DEPLOY.md`.
+- Docker finns inte på utvecklingsdatorn. Verifiera Docker-versionen på ägarens Unraid-server med röktestet:
+  pusha grenen, klona den till `/tmp` på servern och kör `bash tests/docker_smoke.sh <nät> <ping-ip>`
+  (egna namn och portar, städar själv). SSH sker bara med nyckel som ägaren själv godkänt – aldrig med lösenord.
 - Ta bort testartefakter efteråt: `backups/`, `data/`, `__pycache__/`.
 - Windows: Temp-sökvägar blir för långa för vissa program – kör skript med full sökväg från projektmappen.
   Git Bash gör om argument som `/CN=…`; Git:s `openssl` är ett Windows-program (använd `cygpath -m`).
