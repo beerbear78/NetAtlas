@@ -40,19 +40,20 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Hämta images via Googles spegel av Docker Hub (undviker Docker Hubs gräns för anonyma hämtningar)
-        run: |
-          f=/etc/docker/daemon.json
-          [ -s "$f" ] || echo '{}' | sudo tee "$f" > /dev/null
-          sudo jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' "$f" | sudo tee "$f.new" > /dev/null
-          sudo mv "$f.new" "$f"
-          sudo systemctl restart docker
-          docker info --format '{{.RegistryConfig.Mirrors}}'
-      - name: Hämta basimages (med omförsök)
+      # GitHubs delade testmaskiner når ofta Docker Hubs gräns för anonyma hämtningar. Basimagesen hämtas därför
+      # från AWS publika kopia av Dockers officiella images och märks om lokalt, så att bygget inte går mot Docker Hub.
+      - name: Hämta basimages från public.ecr.aws
         run: |
           for img in postgres:16-alpine python:3.12-slim; do
-            for i in 1 2 3 4; do docker pull -q "$img" && break; echo "försök $i misslyckades – väntar"; sleep $((i * 15)); done
+            ok=
+            for i in 1 2 3; do
+              if timeout 300 docker pull -q "public.ecr.aws/docker/library/$img"; then ok=1; break; fi
+              echo "försök $i för $img misslyckades – väntar"; sleep $((i * 10))
+            done
+            [ -n "$ok" ] || { echo "kunde inte hämta $img"; exit 1; }
+            docker tag "public.ecr.aws/docker/library/$img" "$img"
           done
+          docker images --format '{{.Repository}}:{{.Tag}}'
       - name: Compose-filerna är giltiga
         env:
           APP_PASSWORD: ci-test-losenord
