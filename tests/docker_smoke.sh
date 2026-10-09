@@ -23,7 +23,7 @@ cat > "$ENVF" <<EOF
 APP_USER=admin
 APP_PASSWORD=$(openssl rand -hex 12)
 APP_SECRET=$(openssl rand -hex 32)
-LOGIN_2FA=false
+LOGIN_2FA=optional
 PORT=8790
 TLS=on
 SCAN_CIDRS=$CIDR
@@ -100,12 +100,12 @@ dc start app >/dev/null 2>&1
 healthy && phase verify
 
 echo "== Fas 4: tvåstegsinloggning"
-sed -i 's/^LOGIN_2FA=.*/LOGIN_2FA=true/' "$ENVF"
+sed -i 's/^LOGIN_2FA=.*/LOGIN_2FA=required/' "$ENVF"
 dc up -d >/dev/null 2>&1
 healthy && phase twofa
 
 echo "== Fas 5: host-nätverk (full skanning)"
-sed -i 's/^LOGIN_2FA=.*/LOGIN_2FA=false/' "$ENVF"
+sed -i 's/^LOGIN_2FA=.*/LOGIN_2FA=off/' "$ENVF"
 HOSTNET=1
 dc up -d >/dev/null 2>&1
 healthy && phase hostnet

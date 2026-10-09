@@ -61,11 +61,14 @@ c, h, j = req('/api/info'); check('API utan inloggning -> 401', c == 401 and j.g
 c, h, j = req('/login', raw=True); check('inloggningssidan', c == 200 and b'Logga in' in j, c)
 c, h, j = req('/login', {'user': U, 'pass': 'fel'}); check('fel lösenord -> 401', c == 401, (c, j))
 c, h, j = req('/login', {'user': U, 'pass': P}, headers={'Origin': 'http://evil.example'}); check('annan Origin -> 403', c == 403, (c, j))
-c, h, j = req('/login', {'user': U, 'pass': P}); check('rätt lösenord -> QR-registrering', c == 200 and j.get('setup') and j.get('secret'), j)
-tok, sec = j['token'], j['secret']
-c, h, j = req('/login', {'user': U, 'pass': P, 'setup': tok, 'code': '000000'}); check('fel kod vid registrering -> 401', c == 401 and j.get('setup'), j)
-c, h, j = req('/login', {'user': U, 'pass': P, 'setup': tok, 'code': H.totp_at(sec, time.time())}); check('rätt kod -> inloggad', c == 200 and j.get('ok'), j)
+c, h, j = req('/login', {'user': U, 'pass': P}); check('första inloggningen: tvåsteg erbjuds', c == 200 and j.get('offer') and not j.get('ok'), j)
+check('ingen inloggning innan valet', not any(k.name == 'netatlas_session' for k in jar))
+c, h, j = req('/login', {'user': U, 'pass': P, 'enroll': True}); check('"Aktivera nu" -> QR-registrering (frivillig)', c == 200 and j.get('setup') and j.get('optional'), j)
+c, h, j = req('/login', {'user': U, 'pass': P, 'skip': True}); check('"Hoppa över" -> inloggad', c == 200 and j.get('ok'), j)
 check('sessionskaka satt', any(k.name == 'netatlas_session' for k in jar))
+c, h, j = req('/api/info'); check('appen ser att tvåsteg inte är aktiverat', j.get('login2fa') == {'mode': 'optional', 'enrolled': False}, j.get('login2fa'))
+jar.clear()
+c, h, j = req('/login', {'user': U, 'pass': P}); check('nästa inloggning frågar inte igen', c == 200 and j.get('ok'), j)
 c, h, j = req('/api/info'); check('info: storage=server', c == 200 and j.get('storage') == 'server', j)
 c, h, j = req('/', raw=True); check('/ inloggad -> appen', c == 200 and b'NetAtlas' in j, c)
 c, h, j = req('/api/vault'); check('tomt valv', c == 200 and j['version'] == 0 and j['data'] is None, j)
@@ -99,10 +102,41 @@ v0 = good.value
 good.value = v0[:-3] + ('AAA' if not v0.endswith('AAA') else 'BBB')
 c, h, j = req('/api/info'); check('manipulerad kaka -> 401', c == 401, c)
 good.value = v0
+
+# ---- aktivera tvåsteg senare, inifrån appen (Inställningar → Säkerhet) ----
+before = v0
+c, h, j = req('/api/login2fa'); check('status: inte aktiverat', c == 200 and j == {'mode': 'optional', 'enrolled': False}, j)
+c, h, j = req('/api/login2fa/setup', {}); check('aktivera från appen: QR-kod', c == 200 and j.get('secret') and j.get('token'), j)
+tok, sec = j['token'], j['secret']
+c, h, j = req('/api/login2fa/confirm', {'token': tok, 'code': '000000'}); check('fel kod -> 401', c == 401, j)
+c, h, j = req('/api/login2fa/confirm', {'token': tok, 'code': H.totp_at(sec, time.time())}); check('rätt kod -> aktiverat', c == 200 and j.get('ok'), j)
+c, h, j = req('/api/info'); check('den här enheten förblir inloggad', c == 200 and j['login2fa']['enrolled'] is True, (c, j))
+cur = [k for k in jar if k.name == 'netatlas_session'][0]
+after, cur.value = cur.value, before
+c, h, j = req('/api/info'); check('andra inloggningar utan kod blir ogiltiga', c == 401, c)
+cur.value = after
+c, h, j = req('/api/login2fa/setup', {}); check('kan inte aktiveras två gånger', c == 400, j)
 jar.clear()
-c, h, j = req('/login', {'user': U, 'pass': P}); check('registrerad: kräver kod', c == 200 and j.get('needCode'), j)
+c, h, j = req('/login', {'user': U, 'pass': P}); check('aktiverat: kräver kod', c == 200 and j.get('needCode'), j)
 c, h, j = req('/login', {'user': U, 'pass': P, 'code': H.totp_at(sec, time.time())}); check('samma kod igen nekas (återanvändning)', c == 401, j)
 c, h, j = req('/login', {'user': U, 'pass': P, 'code': H.totp_at(sec, time.time() + 30)}); check('nästa kod godkänns', c == 200 and j.get('ok'), j)
+hs.sa._last_step[0] = 0  # testgenväg: tillåt ytterligare en kod inom samma 90 sekunder
+c, h, j = req('/api/login2fa/disable', {'code': '000000'}); check('stänga av med fel kod nekas', c == 401, j)
+c, h, j = req('/api/login2fa/disable', {'code': H.totp_at(sec, time.time())}); check('stänga av med rätt kod', c == 200 and j.get('ok'), j)
+c, h, j = req('/api/login2fa'); check('status: av igen', j.get('enrolled') is False, j)
+jar.clear()
+c, h, j = req('/login', {'user': U, 'pass': P}); check('avstängt: inloggning utan kod', c == 200 and j.get('ok'), j)
+
+# ---- lägena required och off ----
+hs.sa.LOGIN_2FA = 'required'
+c, h, j = req('/api/info'); check('required: inloggning utan tvåsteg blir ogiltig', c == 401, c)
+jar.clear()
+c, h, j = req('/login', {'user': U, 'pass': P}); check('required: registrering krävs', c == 200 and j.get('setup') and not j.get('optional'), j)
+c, h, j = req('/login', {'user': U, 'pass': P, 'skip': True}); check('required: går inte att hoppa över', c == 200 and j.get('setup') and not j.get('ok'), j)
+hs.sa.LOGIN_2FA = 'off'
+c, h, j = req('/login', {'user': U, 'pass': P}); check('off: ingen fråga om tvåsteg', c == 200 and j.get('ok'), j)
+c, h, j = req('/api/login2fa/setup', {}); check('off: kan inte aktiveras', c == 400, j)
+hs.sa.LOGIN_2FA = 'optional'
 c, h, j = req('/logout', raw=True); check('utloggning', c == 302 and 'Max-Age=0' in (h.get('Set-Cookie') or ''), (c, h.get('Set-Cookie')))
 jar.clear()
 c, h, j = req('/api/info'); check('efter utloggning -> 401', c == 401, c)

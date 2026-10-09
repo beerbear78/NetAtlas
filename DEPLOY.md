@@ -28,7 +28,8 @@ nano .env
 
 Fyll i `APP_PASSWORD` (lösenordet du loggar in med – välj ett eget starkt), `APP_SECRET` och `POSTGRES_PASSWORD`.
 Innehåller ett värde tecknet `$`, sätt det inom enkla citattecken: `APP_PASSWORD='...'`. Ändra också `TLS_HOSTS` (serverns IP och namn),
-`SCAN_CIDRS` (ditt nät) och `APPDATA` (din appdata-sökväg + `/netatlas`). Sätt `LOGIN_2FA=true` om inloggningen ska kräva en kod från en autentiseringsapp.
+`SCAN_CIDRS` (ditt nät) och `APPDATA` (din appdata-sökväg + `/netatlas`). `LOGIN_2FA` styr tvåstegsinloggningen:
+`optional` (standard – erbjuds vid första inloggningen och kan aktiveras senare), `required` (krav) eller `off`.
 `.env` innehåller hemligheter: spara en kopia på ett säkert ställe och checka aldrig in den.
 
 ## 3. Starta
@@ -41,7 +42,8 @@ curl -k https://127.0.0.1:8770/health  # {"status": "ok", "db": "ok"}
 
 Öppna **https://SERVERNS-IP:8770** (eller WebUI i Unraids Docker-flik). Första gången varnar webbläsaren för
 certifikatet eftersom det är självsignerat – välj *Avancerat → Fortsätt*. Logga in med `APP_USER`/`APP_PASSWORD`
-(och skanna QR-koden om `LOGIN_2FA=true`). Skapa sedan ett huvudlösenord, eller flytta dina data enligt steg 4.
+Första gången erbjuds tvåstegsinloggning – den rekommenderas, men du kan hoppa över och aktivera den senare under
+*Inställningar → Säkerhet*. Skapa sedan ett huvudlösenord, eller flytta dina data enligt steg 4.
 
 *Bli av med varningen:* hämta `https://SERVERNS-IP:8770/netatlas.crt`, dubbelklicka och installera det under
 *Lokal dator → Betrodda rotcertifikatutfärdare*. Byter servern IP eller namn: ta bort `app/certs/*.pem` och starta om.
@@ -132,7 +134,7 @@ därför `.env` tillsammans med backuperna (men på ett säkert ställe). Appens
 
 ```bash
 docker compose exec app python -m server.cli status      # storlek, version, senast sparat
-docker compose exec app python -m server.cli reset-2fa   # tappad telefon: ny QR-kod vid nästa inloggning
+docker compose exec app python -m server.cli reset-2fa   # tappad telefon: logga in utan kod och aktivera igen
 docker compose logs -f app                               # loggar
 ```
 

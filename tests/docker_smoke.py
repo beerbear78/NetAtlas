@@ -57,7 +57,10 @@ def check(name, cond, extra=''):
 
 
 def login():
+    """Logga in; erbjuds tvåsteg (första gången, LOGIN_2FA=optional) hoppar vi över."""
     c, h, j = req('/login', {'user': U, 'pass': P})
+    if c == 200 and isinstance(j, dict) and j.get('offer'):
+        c, h, j = req('/login', {'user': U, 'pass': P, 'skip': True})
     return c, j
 
 
@@ -68,7 +71,11 @@ if PHASE == 'seed':
     c, h, j = req('/health'); check('health', c == 200 and j.get('db') == 'ok', j)
     c, h, j = req('/', raw=True); check('/ -> /login utan inloggning', c == 302 and h['Location'] == '/login', c)
     c, h, j = req('/login', {'user': U, 'pass': 'fel'}); check('fel lösenord nekas', c == 401, c)
-    c, j = login(); check('inloggning', c == 200 and j.get('ok'), (c, j))
+    c, h, j = req('/login', {'user': U, 'pass': P}); check('första inloggningen erbjuder tvåsteg', c == 200 and j.get('offer'), (c, j))
+    c, h, j = req('/login', {'user': U, 'pass': P, 'skip': True}); check('hoppa över -> inloggad', c == 200 and j.get('ok'), (c, j))
+    c, h, j = req('/api/info'); check('appen vet att tvåsteg inte är aktiverat', j.get('login2fa') == {'mode': 'optional', 'enrolled': False}, j.get('login2fa'))
+    jar.clear()
+    c, j = login(); check('nästa inloggning utan fråga', c == 200 and j.get('ok'), (c, j))
     ck = [k for k in jar if k.name == 'netatlas_session']
     check('sessionskaka (Secure med TLS)', ck and (ck[0].secure or not TLS), ck)
     c, h, j = req('/', raw=True); check('appen levereras utan inbäddade planer', c == 200 and b'id="shell"' in j and b'<script id="housePlans"' not in j, c)

@@ -32,6 +32,11 @@ input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--a
 button{width:100%;margin-top:16px;font:inherit;font-weight:600;border:0;border-radius:8px;padding:9px 12px;background:var(--accent);color:#fff;cursor:pointer}
 button:hover{filter:brightness(1.08)}
 button:disabled{opacity:.6;cursor:default}
+button.sec{margin-top:8px;background:transparent;color:var(--text);border:1px solid var(--border);font-weight:500}
+button.sec:hover{background:var(--surface2);filter:none}
+.callout{background:var(--accent-soft);border:1px solid rgba(0,111,255,.25);border-radius:10px;padding:12px 14px;margin:4px 0 2px;font-size:13px;line-height:1.5}
+.callout b{display:block;margin-bottom:4px;color:var(--accent)}
+.callout p{margin:6px 0 0;color:var(--muted)}
 .err{color:var(--danger);font-size:13px;min-height:18px;margin-top:10px}
 .qr{display:flex;justify-content:center;margin:6px 0 10px}
 .qr svg{width:184px;height:184px;background:#fff;border-radius:10px;display:block}
@@ -54,12 +59,23 @@ code{display:block;font:13px/1.5 ui-monospace,Consolas,monospace;word-break:brea
     <div class="qr" id="qr"></div>
     <code id="secret"></code>
   </div>
+  <div id="offer" hidden>
+    <div class="callout">
+      <b>Tvåstegsinloggning rekommenderas</b>
+      Skydda inloggningen med en kod från en autentiseringsapp i mobilen (t.ex. Microsoft eller Google Authenticator).
+      Då räcker det inte att någon får tag på lösenordet – särskilt viktigt om NetAtlas nås utanför hemmanätet.
+      <p>Du kan också hoppa över nu och aktivera det senare under Inställningar → Säkerhet.</p>
+    </div>
+    <button type="button" id="enrollBtn">Aktivera tvåstegsinloggning</button>
+    <button type="button" class="sec" id="skipBtn">Hoppa över</button>
+  </div>
   <div id="codeBox" hidden>
     <label for="code">Kod från autentiseringsappen</label>
     <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000000">
   </div>
   <div class="err" id="err" role="alert"></div>
   <button id="btn" type="submit">Logga in</button>
+  <button type="button" class="sec" id="skip2" hidden>Hoppa över – aktivera senare</button>
 </form>
 <script>
 "use strict";
@@ -84,35 +100,53 @@ async function showQr(uri){
     $('qr').innerHTML = q.createSvgTag({cellSize:4, margin:4, scalable:true});
   }catch{ $('qr').innerHTML = '<p>QR-koden kunde inte visas (kräver internet). Skriv in nyckeln nedan i appen.</p>'; }
 }
+function show(part){
+  // part: cred | offer | setup | code
+  $('cred').hidden = part !== 'cred';
+  $('offer').hidden = part !== 'offer';
+  $('setup').hidden = part !== 'setup';
+  $('codeBox').hidden = part !== 'setup' && part !== 'code';
+  $('btn').hidden = part === 'offer';
+}
 function step(j){
-  if(j.setup){
+  if(j.offer){
+    $('title').textContent = 'Skydda inloggningen';
+    $('intro').hidden = true;
+    show('offer'); $('enrollBtn').focus();
+  } else if(j.setup){
     setupToken = j.token;
     $('title').textContent = 'Aktivera tvåstegsinloggning';
-    $('intro').textContent = 'Tvåstegsinloggning är påslagen för servern. Det här behöver bara göras en gång.';
-    $('cred').hidden = true; $('setup').hidden = false; $('codeBox').hidden = false;
+    $('intro').hidden = false;
+    $('intro').textContent = j.optional ? 'Skanna QR-koden och ange koden som visas i appen. Det behöver bara göras en gång.'
+      : 'Servern kräver tvåstegsinloggning. Det här behöver bara göras en gång.';
+    show('setup'); $('skip2').hidden = !j.optional;
     $('secret').textContent = j.secret.match(/.{1,4}/g).join(' ');
     $('btn').textContent = 'Aktivera och logga in';
     showQr(j.uri); $('code').focus();
   } else if(j.needCode){
     $('title').textContent = 'Tvåstegsinloggning';
+    $('intro').hidden = false;
     $('intro').textContent = 'Ange koden som visas i din autentiseringsapp.';
-    $('cred').hidden = true; $('codeBox').hidden = false; $('btn').textContent = 'Logga in';
+    show('code'); $('btn').textContent = 'Logga in';
     $('code').focus();
   }
 }
-$('f').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = $('btn'); btn.disabled = true; $('err').textContent = '';
+async function send(extra = {}){
+  const btns = [$('btn'), $('enrollBtn'), $('skipBtn'), $('skip2')];
+  btns.forEach(b => b.disabled = true); $('err').textContent = '';
   try{
     const r = await fetch('/login', {method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
-      body:JSON.stringify({user:$('user').value, pass:$('pass').value, code:$('code').value, setup:setupToken})});
+      body:JSON.stringify({user:$('user').value, pass:$('pass').value, code:$('code').value, setup:setupToken, ...extra})});
     const j = await r.json().catch(() => ({error:'Ogiltigt svar från servern.'}));
     if(j.ok){ location.replace('/'); return; }
     step(j);
     if(j.error){ $('err').textContent = j.error; if(!$('codeBox').hidden){ $('code').value = ''; $('code').focus(); } else $('pass').select(); }
   }catch{ $('err').textContent = 'Kunde inte nå servern.'; }
-  btn.disabled = false;
-});
+  btns.forEach(b => b.disabled = false);
+}
+$('f').addEventListener('submit', e => { e.preventDefault(); send(); });
+$('enrollBtn').onclick = () => send({enroll:true});
+$('skipBtn').onclick = $('skip2').onclick = () => { setupToken = ''; $('code').value = ''; send({skip:true}); };
 </script>
 </body>
 </html>

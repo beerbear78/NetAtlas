@@ -205,6 +205,10 @@ body.nolist #listPane{display:none}
 .dlg .sdb{flex:1;overflow:auto;padding:0 20px 24px}
 .dlg [data-sx="close"],.dlg [data-jx="close"],.dlg [data-g="close"]{display:none!important}
 .dlg .jcard{max-width:1100px}
+.subh{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:14px 0 6px}
+.subh:first-of-type{margin-top:4px}
+.callout{background:var(--accent-soft);border:1px solid rgba(0,111,255,.25);border-radius:10px;padding:12px 14px;margin:4px 0 8px;font-size:13px;line-height:1.5}
+.callout b{display:block;margin-bottom:2px;color:var(--accent)}
 .dlg table{border-collapse:collapse;width:100%;font-size:13px}
 .dlg th{text-align:left;font-size:12px;font-weight:500;color:var(--muted);position:sticky;top:0;z-index:1;background:var(--surface);padding:12px 10px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
 .dlg td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
@@ -1529,10 +1533,32 @@ async function trimPlan(P){
 }
 const storeMB = () => (vaultRaw().length / 1e6);
 
+/* ---------- Tvåstegsinloggning till servern (bara i serverläget; styrs av LOGIN_2FA på servern) ---------- */
+let l2fa = null;  // {token, secret, qr, err} medan aktiveringen pågår
+function login2faBlock(){
+  const L = HELPER?.login2fa;
+  if(!onServer() || !L || L.mode === 'off') return '';
+  let h = '<h4 class="subh">Inloggning till servern</h4>';
+  if(l2fa) h += `<div class="inline" style="align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div class="qrbox">${l2fa.qr || '<p class="hint">QR-koden kunde inte visas – ange nyckeln manuellt.</p>'}</div>
+      <div style="flex:1;min-width:220px"><p>Skanna QR-koden med autentiseringsappen – eller ange nyckeln manuellt:</p><code class="big">${esc(l2fa.secret.match(/.{1,4}/g).join(' '))}</code>
+        <div class="inline" style="margin-top:10px"><input id="l2faCode" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="6 siffror" class="codein" style="width:150px">
+          <button class="primary" data-g="l2faconfirm">Aktivera</button><button data-g="l2facancel">Avbryt</button></div>
+        ${l2fa.err ? `<p class="warn">${esc(l2fa.err)}</p>` : ''}</div></div>`;
+  else if(L.enrolled) h += `<p>🔐 <b>Tvåstegsinloggning är på</b> – inloggningen kräver lösenord + kod från autentiseringsappen.
+      ${L.mode === 'required' ? '<span class="hint">(krävs av servern)</span>' : '<button class="icon" data-g="l2faoff">Stäng av…</button>'}</p>`;
+  else h += `<div class="callout"><b>Rekommenderas: aktivera tvåstegsinloggning</b> Skydda inloggningen med en kod från en autentiseringsapp
+      (t.ex. Microsoft eller Google Authenticator) – då räcker det inte att någon får tag på lösenordet.
+      <div style="margin-top:8px"><button class="primary icon" data-g="l2faon">Aktivera…</button></div></div>`;
+  return h + '<h4 class="subh">Valvet</h4>';
+}
+
 /* ---------- Tvåstegsinloggning (MFA) ---------- */
 let mfaS = null;
 function mfaBlock(){
   if(MFA) return `<p>🔐 <b>Tvåstegsinloggning är på</b>${settings().mfa?.since ? ' sedan ' + new Date(settings().mfa.since).toLocaleDateString('sv-SE') : ''}. Upplåsning kräver lösenord + kod från autentiseringsappen. <button class="icon" data-g="mfaoff">Stäng av…</button></p>`;
+  if(onServer()) return `<p>Extra tvåstegsskydd av valvet är <b>av</b>. <button class="icon" data-g="mfaon">Aktivera…</button></p>
+    <p class="hint">Valfritt: då kräver även upplåsningen av valvet en kod. Behövs normalt inte om tvåstegsinloggningen ovan är på.</p>`;
   return `<p>Tvåstegsinloggning (MFA) är <b>av</b>. ${HELPER ? '<button class="primary icon" data-g="mfaon">Aktivera…</button>' : ''}</p>
     <p class="hint">${HELPER ? 'Kräver en autentiseringsapp, t.ex. Microsoft Authenticator, Google Authenticator eller 1Password.' : 'Kräver hjälpprogrammet (Start NetAtlas.bat).'}</p>`;
 }
@@ -2725,6 +2751,8 @@ function todos(){
     const iv = jobInterval(j.schedule), t = Date.parse(j.lastRun);
     if(iv && !isNaN(t) && now - t > iv * 1.5 + 36e5) add('job:' + j.id + ':' + j.lastRun, 'med', `Jobbet <b>${esc(j.name)}</b> har inte körts sedan ${new Date(t).toLocaleString('sv-SE')} (${esc(cronText(j.schedule) || j.schedule)})`, {job:j.id});
   }
+  const L2 = onServer() && HELPER?.login2fa;
+  if(L2 && L2.mode !== 'off' && !L2.enrolled) add('l2fa', 'low', 'Tvåstegsinloggning till servern är inte aktiverad – rekommenderas (Inställningar → Säkerhet)', {set:1});
   if(HELPER){
     const st = settings(), lb = st.lastBackup;
     if(st.autoBackup === false && (!lb || now - lb > 7 * 864e5)) add('bkoff', 'med', `Automatisk säkerhetskopiering är avstängd${lb ? ` – senaste kopian ${rel(lb)}` : ''}`, {set:1});
@@ -2862,6 +2890,7 @@ function settingsView(){
     <p class="hint">Slå på larm per enhet med 🔔-rutan i enhetspanelen. Kräver att <b>● Live</b> är på och att NetAtlas är öppet.</p>
   </div>
   <div class="jcard"><h3 style="margin-top:0">Säkerhet</h3>
+    ${login2faBlock()}
     ${mfaBlock()}
     <label class="chk"><input type="checkbox" data-set="clipKeep" ${S.clipKeep ? 'checked' : ''}> Behåll kopierade lösenord i urklipp (annars rensas de efter 30 sekunder)</label>
     <label class="chk"><input type="checkbox" data-set="hibpAuto" ${S.hibpAuto ? 'checked' : ''}> Kontrollera lösenorden mot kända dataläckor (Have I Been Pwned) en gång i veckan</label>
@@ -3366,7 +3395,8 @@ function renderDash(){
   const SS = settings(), C = SS.cloud;
   const cSec = `<div class="card"><div class="ch"><h3>Säkerhet &amp; backup</h3><button class="lnk" data-nav="set">Inställningar →</button></div>
     <div class="kv"><span>Hjälpprogram</span><b class="${HELPER ? 'ok' : 'bad'}">${HELPER ? 'anslutet' : 'körs inte'}</b></div>
-    <div class="kv"><span>Tvåstegsinloggning</span><b class="${MFA ? 'ok' : ''}">${MFA ? 'aktiverad' : 'av'}</b></div>
+    ${onServer() && HELPER?.login2fa && HELPER.login2fa.mode !== 'off' ? `<div class="kv"><span>Tvåstegsinloggning (server)</span><b class="${HELPER.login2fa.enrolled ? 'ok' : 'warnc'}">${HELPER.login2fa.enrolled ? 'aktiverad' : 'av – rekommenderas'}</b></div>` : ''}
+    <div class="kv"><span>${onServer() ? 'Tvåstegsskydd av valvet' : 'Tvåstegsinloggning'}</span><b class="${MFA ? 'ok' : ''}">${MFA ? 'aktiverad' : 'av'}</b></div>
     <div class="kv"><span>Senaste säkerhetskopia</span><b>${SS.lastBackup ? rel(SS.lastBackup) : 'ingen ännu'}</b></div>
     <div class="kv"><span>Molnbackup</span><b>${C?.type ? (C.lastErr ? '<span class="bad">misslyckades</span>' : C.last ? rel(C.last) : 'inställd') : 'inte inställd'}</b></div>
     <div class="kv"><span>${onServer() ? 'Lagring på servern' : 'Lagring i webbläsaren'}</span><b>${storeMB().toFixed(1).replace('.', ',')} MB${onServer() ? '' : ' av ca 5 MB'}</b></div>
@@ -3478,6 +3508,22 @@ function initUI(){
     else if(g === 'mfaon') mfaStart();
     else if(g === 'mfaconfirm') mfaConfirm(t);
     else if(g === 'mfaoff') mfaOff();
+    else if(g === 'l2faon'){
+      try{ const r = await apiPost('/api/login2fa/setup', {}); l2fa = {...r, qr:await qrSvg(r.uri), err:''}; renderG(); setTimeout(() => $('#l2faCode')?.focus(), 50); }
+      catch(err){ alert('Kunde inte starta: ' + err.message); }
+    }
+    else if(g === 'l2faconfirm'){
+      t.disabled = true;
+      try{ await apiPost('/api/login2fa/confirm', {token:l2fa.token, code:$('#l2faCode').value}); l2fa = null; await detectHelper(); renderG(); renderTodoBadge(); status('Tvåstegsinloggning till servern aktiverad'); }
+      catch(err){ l2fa.err = err.message; renderG(); setTimeout(() => $('#l2faCode')?.focus(), 50); }
+    }
+    else if(g === 'l2facancel'){ l2fa = null; renderG(); }
+    else if(g === 'l2faoff'){
+      const code = prompt('Ange koden från autentiseringsappen för att stänga av tvåstegsinloggningen till servern:');
+      if(!code) return;
+      try{ await apiPost('/api/login2fa/disable', {code}); await detectHelper(); renderG(); renderTodoBadge(); status('Tvåstegsinloggning till servern avstängd'); }
+      catch(err){ alert(err.message); }
+    }
     else if(g === 'mfareccopy') copyText(mfaS.recovery, true);
     else if(g === 'mfarecdl') download('netatlas-aterstallningsnyckel.txt', mfaRecText(), 'text/plain');
     else if(g === 'mfarecprint'){ const w = window.open('', '_blank'); if(w){ w.document.write(`<pre style="font:16px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;padding:24px">${esc(mfaRecText())}</pre>`); w.document.close(); setTimeout(() => w.print(), 300); } }
