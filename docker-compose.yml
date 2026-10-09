@@ -1,13 +1,14 @@
 # NetAtlas – app + PostgreSQL 16.
-#   Starta:      docker compose up -d --build
+#   Starta:      docker compose up -d          (hämtar den färdiga imagen från ghcr.io)
+#   Uppdatera:   docker compose pull && docker compose up -d
 #   Full skanning (MAC-adresser, Wake-on-LAN): se docker-compose.host.yml
+#   Bygga själv från källkoden: se docker-compose.build.yml
 # Inställningar och lösenord läses från .env (kopiera .env.example). Se DEPLOY.md.
 name: netatlas
 
 services:
   app:
-    build: .
-    image: netatlas:latest
+    image: ghcr.io/beerbear78/netatlas:${NETATLAS_TAG:-latest}
     container_name: netatlas
     restart: unless-stopped
     depends_on:

@@ -23,4 +23,6 @@ README.md
 CLAUDE.md
 .gitattributes
 tests
+.github
+install.sh
 docker-compose*.yml
