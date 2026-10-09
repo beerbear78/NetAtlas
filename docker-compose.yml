@@ -1,0 +1,61 @@
+# NetAtlas – app + PostgreSQL 16.
+#   Starta:      docker compose up -d --build
+#   Full skanning (MAC-adresser, Wake-on-LAN): se docker-compose.host.yml
+# Inställningar och lösenord läses från .env (kopiera .env.example). Se DEPLOY.md.
+name: netatlas
+
+services:
+  app:
+    build: .
+    image: netatlas:latest
+    container_name: netatlas
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-netatlas}:${POSTGRES_PASSWORD:?Sätt POSTGRES_PASSWORD i .env}@db:5432/${POSTGRES_DB:-netatlas}
+      PORT: ${PORT:-8770}
+      APP_USER: ${APP_USER:-admin}
+      APP_PASSWORD: ${APP_PASSWORD:?Sätt APP_PASSWORD i .env}
+      APP_SECRET: ${APP_SECRET:?Sätt APP_SECRET i .env}
+      LOGIN_2FA: ${LOGIN_2FA:-false}
+      SESSION_HOURS: ${SESSION_HOURS:-12}
+      TLS: ${TLS:-on}
+      TLS_HOSTS: ${TLS_HOSTS:-}
+      SCAN_CIDRS: ${SCAN_CIDRS:-}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-}
+      PUID: ${PUID:-99}
+      PGID: ${PGID:-100}
+      TZ: ${TZ:-Europe/Stockholm}
+    ports:
+      - "${PORT:-8770}:${PORT:-8770}"
+    volumes:
+      - ${APPDATA:-/mnt/user/appdata/netatlas}/app:/data
+    healthcheck:
+      test: ["CMD", "python", "-m", "server.healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    labels:
+      net.unraid.docker.webui: "https://[IP]:[PORT:${PORT:-8770}]/"
+
+  db:
+    image: postgres:16-alpine
+    container_name: netatlas-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-netatlas}
+      POSTGRES_USER: ${POSTGRES_USER:-netatlas}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Sätt POSTGRES_PASSWORD i .env}
+      TZ: ${TZ:-Europe/Stockholm}
+    volumes:
+      - ${APPDATA:-/mnt/user/appdata/netatlas}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    # ingen port publiceras: databasen nås bara av appen i det interna nätet

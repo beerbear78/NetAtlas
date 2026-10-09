@@ -1,0 +1,4 @@
+# NetAtlas på server (Docker). Lokalt i Windows behövs inga paket.
+gunicorn~=23.0
+psycopg[binary,pool]~=3.2
+cryptography>=44

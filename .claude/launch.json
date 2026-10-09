@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "inventarie",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "netatlas-helper.py",
+        "--no-browser",
+        "--port",
+        "8771"
+      ],
+      "port": 8771
+    },
+    {
+      "name": "netatlas-server",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "tests/server_harness.py"
+      ],
+      "port": 8783
+    }
+  ]
+}

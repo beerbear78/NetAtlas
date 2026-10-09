@@ -1,0 +1,15 @@
+# Tillval: full nätverksskanning – appen kör i värdens nätverk.
+# Då syns MAC-adresser, Wake-on-LAN når ut i nätet och delning av mobilkopian fungerar.
+#   docker compose -f docker-compose.yml -f docker-compose.host.yml up -d --build
+# Databasen nås då via 127.0.0.1 på värden (porten öppnas bara lokalt, inte mot nätet).
+services:
+  app:
+    network_mode: host
+    ports: !reset []
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-netatlas}:${POSTGRES_PASSWORD:?Sätt POSTGRES_PASSWORD i .env}@127.0.0.1:${DB_HOST_PORT:-5433}/${POSTGRES_DB:-netatlas}
+      NETATLAS_NETWORK: host
+
+  db:
+    ports:
+      - "127.0.0.1:${DB_HOST_PORT:-5433}:5432"

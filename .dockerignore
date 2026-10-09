@@ -1,0 +1,26 @@
+# Allt utom det som behövs för imagen
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.claude
+.venv
+venv
+__pycache__
+*.pyc
+backups
+data
+oui.txt
+*.sqlite
+*.sqlite3
+*.db
+*.zip
+*.bat
+IT-inventarie
+DEPLOY.md
+README.md
+CLAUDE.md
+.gitattributes
+tests
+docker-compose*.yml

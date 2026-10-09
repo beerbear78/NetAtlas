@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Logga in – NetAtlas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23006fff'/%3E%3Cpath d='M16 9.5 9.5 21.5h13z' fill='none' stroke='%23fff' stroke-opacity='.75' stroke-width='1.8' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='9.5' r='2.9' fill='%23fff'/%3E%3Ccircle cx='9.5' cy='21.5' r='2.9' fill='%23fff'/%3E%3Ccircle cx='22.5' cy='21.5' r='2.9' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f3f4f6;--surface:#fff;--surface2:#f2f3f5;--text:#1c2128;--muted:#6b7380;--border:#e2e5e9;
+  --accent:#006fff;--accent-soft:rgba(0,111,255,.09);--danger:#d9363e;--shadow-lg:0 16px 48px rgba(16,24,40,.22);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#111315;--surface:#1a1c1f;--surface2:#232629;--text:#e9ebee;--muted:#8e96a1;--border:#2a2e33;
+  --accent:#3d8bff;--accent-soft:rgba(61,139,255,.16);--danger:#ff6369;--shadow-lg:0 16px 48px rgba(0,0,0,.55);
+  color-scheme:dark;
+}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;display:flex;align-items:center;justify-content:center;padding:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px;width:min(400px,100%);box-shadow:var(--shadow-lg)}
+.logo{width:44px;height:44px;display:block;margin:0 0 14px}
+h1{font-size:18px;margin:0 0 6px}
+p{margin:0 0 10px;color:var(--muted);font-size:13px}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 3px}
+input{width:100%;font:inherit;color:inherit;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+#code{font-size:20px;letter-spacing:.25em;text-align:center;font-variant-numeric:tabular-nums}
+button{width:100%;margin-top:16px;font:inherit;font-weight:600;border:0;border-radius:8px;padding:9px 12px;background:var(--accent);color:#fff;cursor:pointer}
+button:hover{filter:brightness(1.08)}
+button:disabled{opacity:.6;cursor:default}
+.err{color:var(--danger);font-size:13px;min-height:18px;margin-top:10px}
+.qr{display:flex;justify-content:center;margin:6px 0 10px}
+.qr svg{width:184px;height:184px;background:#fff;border-radius:10px;display:block}
+code{display:block;font:13px/1.5 ui-monospace,Consolas,monospace;word-break:break-all;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;text-align:center;letter-spacing:.06em}
+</style>
+</head>
+<body>
+<form class="card" id="f" novalidate>
+  <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" style="fill:var(--accent)"/><path d="M16 9.5 9.5 21.5h13z" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="9.5" r="2.9" fill="#fff"/><circle cx="9.5" cy="21.5" r="2.9" fill="#fff"/><circle cx="22.5" cy="21.5" r="2.9" fill="#fff"/></svg>
+  <h1 id="title">Logga in på NetAtlas</h1>
+  <p id="intro">Logga in på servern. Därefter låser du upp dina uppgifter med huvudlösenordet som vanligt.</p>
+  <div id="cred">
+    <label for="user">Användarnamn</label>
+    <input id="user" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" autofocus>
+    <label for="pass">Lösenord</label>
+    <input id="pass" name="password" type="password" autocomplete="current-password">
+  </div>
+  <div id="setup" hidden>
+    <p>Skanna QR-koden med din autentiseringsapp (t.ex. Microsoft eller Google Authenticator). Det går också att skriva in nyckeln manuellt.</p>
+    <div class="qr" id="qr"></div>
+    <code id="secret"></code>
+  </div>
+  <div id="codeBox" hidden>
+    <label for="code">Kod från autentiseringsappen</label>
+    <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000000">
+  </div>
+  <div class="err" id="err" role="alert"></div>
+  <button id="btn" type="submit">Logga in</button>
+</form>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let setupToken = '';
+
+function loadQrLib(){
+  return window.qrcode ? Promise.resolve() : new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+    s.integrity = 'sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1';
+    s.crossOrigin = 'anonymous'; s.referrerPolicy = 'no-referrer';
+    s.onload = res; s.onerror = rej; document.head.appendChild(s);
+  });
+}
+async function showQr(uri){
+  if($('qr').dataset.uri === uri) return;
+  $('qr').dataset.uri = uri;
+  try{
+    await loadQrLib();
+    const q = qrcode(0, 'M'); q.addData(uri); q.make();
+    $('qr').innerHTML = q.createSvgTag({cellSize:4, margin:4, scalable:true});
+  }catch{ $('qr').innerHTML = '<p>QR-koden kunde inte visas (kräver internet). Skriv in nyckeln nedan i appen.</p>'; }
+}
+function step(j){
+  if(j.setup){
+    setupToken = j.token;
+    $('title').textContent = 'Aktivera tvåstegsinloggning';
+    $('intro').textContent = 'Tvåstegsinloggning är påslagen för servern. Det här behöver bara göras en gång.';
+    $('cred').hidden = true; $('setup').hidden = false; $('codeBox').hidden = false;
+    $('secret').textContent = j.secret.match(/.{1,4}/g).join(' ');
+    $('btn').textContent = 'Aktivera och logga in';
+    showQr(j.uri); $('code').focus();
+  } else if(j.needCode){
+    $('title').textContent = 'Tvåstegsinloggning';
+    $('intro').textContent = 'Ange koden som visas i din autentiseringsapp.';
+    $('cred').hidden = true; $('codeBox').hidden = false; $('btn').textContent = 'Logga in';
+    $('code').focus();
+  }
+}
+$('f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('btn'); btn.disabled = true; $('err').textContent = '';
+  try{
+    const r = await fetch('/login', {method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
+      body:JSON.stringify({user:$('user').value, pass:$('pass').value, code:$('code').value, setup:setupToken})});
+    const j = await r.json().catch(() => ({error:'Ogiltigt svar från servern.'}));
+    if(j.ok){ location.replace('/'); return; }
+    step(j);
+    if(j.error){ $('err').textContent = j.error; if(!$('codeBox').hidden){ $('code').value = ''; $('code').focus(); } else $('pass').select(); }
+  }catch{ $('err').textContent = 'Kunde inte nå servern.'; }
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>

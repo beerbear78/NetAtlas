@@ -1,0 +1,22 @@
+# hemligheter
+.env
+
+# lokal data från Windows-versionen och Docker – innehåller dina (krypterade) uppgifter
+backups/
+data/
+oui.txt
+*.sqlite
+*.sqlite3
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# byggen och paket (zip-filerna skapas från koden)
+*.zip
+
+# gamla uppackade kopior
+IT-inventarie/
