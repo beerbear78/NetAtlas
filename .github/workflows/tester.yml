@@ -1,0 +1,66 @@
+# Körs vid varje pull request och push till main. Båda jobben måste vara gröna innan en pull request kan mergas
+# (branch protection på main kräver kontrollerna "Tester (Python)" och "Docker (röktest)").
+name: Tester
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tester-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Tester (Python)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Syntaxkontroll
+        run: python -m py_compile netatlas-helper.py server/*.py tests/*.py
+      - name: PyYAML för compose-testerna
+        run: pip install pyyaml
+      - name: Serverläget (inloggning, tvåsteg, valv, bilagor, säkerhetskopior)
+        run: python tests/test_server_api.py
+      - name: Migrering, administration, compose-filer
+        run: python tests/test_server_misc.py
+
+  docker:
+    name: Docker (röktest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      # GitHubs delade testmaskiner når ofta Docker Hubs gräns för anonyma hämtningar. Basimagesen hämtas därför
+      # från AWS publika kopia av Dockers officiella images och märks om lokalt, så att bygget inte går mot Docker Hub.
+      - name: Hämta basimages från public.ecr.aws
+        run: |
+          for img in postgres:16-alpine python:3.12-slim; do
+            ok=
+            for i in 1 2 3; do
+              if timeout 300 docker pull -q "public.ecr.aws/docker/library/$img"; then ok=1; break; fi
+              echo "försök $i för $img misslyckades – väntar"; sleep $((i * 10))
+            done
+            [ -n "$ok" ] || { echo "kunde inte hämta $img"; exit 1; }
+            docker tag "public.ecr.aws/docker/library/$img" "$img"
+          done
+          docker images --format '{{.Repository}}:{{.Tag}}'
+      - name: Compose-filerna är giltiga
+        env:
+          APP_PASSWORD: ci-test-losenord
+          APP_SECRET: ci-test-hemlighet-0123456789abcdef0123456789abcdef
+          POSTGRES_PASSWORD: ci-test-db
+        run: |
+          docker compose config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.host.yml config --quiet
+      - name: Bygg, starta och testa hela Docker-versionen
+        run: bash tests/docker_smoke.sh

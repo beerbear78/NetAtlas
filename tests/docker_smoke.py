@@ -113,7 +113,7 @@ elif PHASE == 'hostnet':
         check(f'skanning av {CIDR} ({len(hosts)} svarade, {time.time() - t0:.0f} s)', c == 200 and len(hosts) > 1, (c, str(j)[:200]))
         check(f'MAC-adresser syns ({len(withmac)} av {len(hosts)})', len(withmac) >= 1)
     c, h, j = req('/api/mobile/share', {'html': '<html><body>test</body></html>', 'minutes': 1})
-    check('mobildelning tillåten i host-läge', c == 200 and j.get('urls'), j)
+    check('mobildelning tillåten i host-läge', c == 200 and isinstance(j, dict) and 'urls' in j, j)
     req('/api/mobile/stop', {})
 print(f'  -> {ok} OK, {fail} FEL')
 sys.exit(1 if fail else 0)
