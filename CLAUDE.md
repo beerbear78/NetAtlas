@@ -37,6 +37,13 @@
 - Windows: Temp-sökvägar blir för långa för vissa program – kör skript med full sökväg från projektmappen.
   Git Bash gör om argument som `/CN=…`; Git:s `openssl` är ett Windows-program (använd `cygpath -m`).
 
+## Git och GitHub
+
+- `main` är skyddad: inga direkta pushar, ingen force push. Varje ändring görs på en egen gren och blir en pull
+  request som ägaren granskar. GitHub Actions (`.github/workflows/tester.yml`) kör Python-testerna och Docker-röktestet;
+  båda kontrollerna, "Tester (Python)" och "Docker (röktest)", måste vara gröna innan merge.
+- Byter du namn på ett jobb i workflowen måste skyddet av `main` uppdateras med samma namn.
+
 ## Leverans
 
 - Installerade kopior (t.ex. Windows-versionen på port 8770) uppdateras bara när ägaren ber om det.

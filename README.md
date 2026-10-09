@@ -1,5 +1,7 @@
 # NetAtlas
 
+[![Tester](https://github.com/beerbear78/NetAtlas/actions/workflows/tester.yml/badge.svg)](https://github.com/beerbear78/NetAtlas/actions/workflows/tester.yml)
+
 IT-inventarie på planritningen: brandväggar, switchar, servrar, kameror och IoT-enheter (t.ex. Shelly) placerade på
 husets planlösning – med konton och lösenord som krypteras i webbläsaren.
 
