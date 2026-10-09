@@ -18,7 +18,7 @@ TMP = os.environ.get('NETATLAS_TEST_DIR') or tempfile.mkdtemp(prefix='netatlas-t
 os.environ.setdefault('APP_USER', 'testare')
 os.environ.setdefault('APP_PASSWORD', 'Tst-8783-lokal')
 os.environ.setdefault('APP_SECRET', 'a' * 16 + '0123456789abcdef' * 3)
-os.environ.setdefault('LOGIN_2FA', 'true')
+os.environ.setdefault('LOGIN_2FA', 'optional')
 os.environ.setdefault('TLS', 'off')
 os.environ.setdefault('NETATLAS_DATA_DIR', os.path.join(TMP, 'data'))
 os.environ.setdefault('DATABASE_URL', 'sqlite-test')

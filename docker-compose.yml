@@ -19,7 +19,7 @@ services:
       APP_USER: ${APP_USER:-admin}
       APP_PASSWORD: ${APP_PASSWORD:?Sätt APP_PASSWORD i .env}
       APP_SECRET: ${APP_SECRET:?Sätt APP_SECRET i .env}
-      LOGIN_2FA: ${LOGIN_2FA:-false}
+      LOGIN_2FA: ${LOGIN_2FA:-optional}
       SESSION_HOURS: ${SESSION_HOURS:-12}
       TLS: ${TLS:-on}
       TLS_HOSTS: ${TLS_HOSTS:-}

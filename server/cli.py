@@ -1,7 +1,7 @@
 """Administration av NetAtlas på servern.
 
     docker compose exec app python -m server.cli status
-    docker compose exec app python -m server.cli reset-2fa   # tappad telefon: ny QR-kod vid nästa inloggning
+    docker compose exec app python -m server.cli reset-2fa   # tappad telefon: logga in utan kod och aktivera igen
 """
 import sys
 
@@ -21,7 +21,9 @@ def main():
         print(f"Tvåstegsinloggning för servern: {'registrerad' if s['login_2fa_enrolled'] else 'inte registrerad'}")
     else:
         store.kv_delete('login_totp')
-        print('Tvåstegsnyckeln för inloggningen är borttagen. Vid nästa inloggning visas en ny QR-kod att skanna.')
+        store.kv_delete('login_2fa_offered')
+        print('Tvåstegsnyckeln för inloggningen är borttagen. Logga in med lösenordet – du får då välja att aktivera\n'
+              'tvåstegsinloggning igen med en ny QR-kod (det går också under Inställningar → Säkerhet).')
 
 
 if __name__ == '__main__':

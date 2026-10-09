@@ -29,7 +29,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 APP_USER = config.env('APP_USER', 'admin')
 APP_PASSWORD = os.environ.get('APP_PASSWORD') or ''
 APP_SECRET = config.APP_SECRET
-LOGIN_2FA = config.flag('LOGIN_2FA')
+_2FA = config.env('LOGIN_2FA', 'optional').lower()
+# optional = erbjuds vid första inloggningen och kan slås på/av under Inställningar (standard)
+# required = måste aktiveras vid första inloggningen;  off = används inte
+LOGIN_2FA = ('required' if _2FA in ('required', 'true', '1', 'yes', 'on', 'ja', 'krav')
+             else 'off' if _2FA in ('off', 'false', '0', 'no', 'nej', 'av') else 'optional')
 SESSION_HOURS = float(config.env('SESSION_HOURS', '12') or 12)
 TLS = config.env('TLS', 'on').lower() not in ('off', 'false', '0', 'no', 'nej')
 CERT_FILE = config.env('TLS_CERT', os.path.join(config.DATA_DIR, 'certs', 'cert.pem'))
@@ -82,13 +86,23 @@ def _sign(body):
     return _b64(hmac.new(_SKEY, body.encode(), hashlib.sha256).digest())
 
 
-def make_session():
-    body = _b64(json.dumps({'u': APP_USER, 'exp': int(time.time() + SESSION_HOURS * 3600), 'g': _GEN, 'm': LOGIN_2FA}).encode())
+def totp_state():
+    """(förseglad hemlighet, id) för inloggningens tvåstegsnyckel, eller (None, '') om ingen gäller."""
+    if LOGIN_2FA == 'off':
+        return None, ''
+    sealed = STORE.kv_get('login_totp')
+    return (sealed, hashlib.sha256(sealed.encode()).hexdigest()[:16]) if sealed else (None, '')
+
+
+def make_session(tid=''):
+    """tid = id för tvåstegsnyckeln som användes vid inloggningen ('' = ingen)."""
+    body = _b64(json.dumps({'u': APP_USER, 'exp': int(time.time() + SESSION_HOURS * 3600), 'g': _GEN, 't': tid}).encode())
     return body + '.' + _sign(body)
 
 
 def valid_session(token):
-    """Inloggningens innehåll om kakan är äkta och giltig, annars None."""
+    """Inloggningens innehåll om kakan är äkta och giltig, annars None.
+    Aktiveras tvåsteg (eller byts nyckeln) blir inloggningar utan rätt kod ogiltiga."""
     body, _, sig = (token or '').partition('.')
     if not body or not hmac.compare_digest(sig.encode(), _sign(body).encode()):
         return None
@@ -96,8 +110,12 @@ def valid_session(token):
         p = json.loads(base64.urlsafe_b64decode(body + '=' * (-len(body) % 4)))
     except ValueError:
         return None
-    ok = p.get('g') == _GEN and p.get('exp', 0) > time.time() and (p.get('m') or not LOGIN_2FA)
-    return p if ok else None
+    if p.get('g') != _GEN or p.get('exp', 0) <= time.time():
+        return None
+    _, tid = totp_state()
+    if (tid and p.get('t') != tid) or (LOGIN_2FA == 'required' and not tid):
+        return None
+    return p
 
 
 def _session_cookie(environ):
@@ -136,13 +154,34 @@ def _fail(ip):
         _fails.setdefault(ip, []).append(time.time())
 
 
-# ---------- tvåstegskod vid inloggning (TOTP, valfritt med LOGIN_2FA) ----------
+# ---------- tvåstegskod vid inloggning (TOTP, styrs av LOGIN_2FA) ----------
 _pending = {}       # engångstoken -> (hemlighet, skapad) under registreringen
 _last_step = [0]    # senast godkända 30-sekundersfönster: samma kod kan inte användas två gånger
 
 
 def _otpauth(secret):
     return f'otpauth://totp/NetAtlas:{quote(APP_USER)}?secret={secret}&issuer=NetAtlas&digits=6&period=30'
+
+
+def _pending_get(token):
+    """Påbörjad registrering för token, eller en ny. Returnerar (token, hemlighet)."""
+    with _lock:
+        for k in [k for k, v in _pending.items() if time.time() - v[1] > 900]:
+            del _pending[k]
+        pend = _pending.get(token or '')
+        if not pend:
+            token = secrets.token_urlsafe(16)
+            pend = _pending[token] = (base64.b32encode(secrets.token_bytes(20)).decode().rstrip('='), time.time())
+    return token, pend[0]
+
+
+def _enroll(token, secret):
+    """Sparar tvåstegsnyckeln (förseglad) och returnerar dess id."""
+    STORE.kv_set('login_totp', STORE.seal(secret.encode()))
+    STORE.kv_set('login_2fa_offered', str(int(time.time())))
+    with _lock:
+        _pending.pop(token, None)
+    return totp_state()[1]
 
 
 def _totp_ok(secret, code):
@@ -188,36 +227,78 @@ def login_post(environ):
     if not (ok_user and ok_pw):
         _fail(ip)
         return _json(401, {'error': 'Fel användarnamn eller lösenord.'})
-    if LOGIN_2FA:
-        sealed = STORE.kv_get('login_totp')
-        if not sealed:
-            # första inloggningen med tvåsteg påslaget: visa QR-kod och spara nyckeln när en kod stämmer
-            token = str(j.get('setup') or '')
-            with _lock:
-                for k in [k for k, v in _pending.items() if time.time() - v[1] > 900]:
-                    del _pending[k]
-                pend = _pending.get(token)
-                if not pend:
-                    token = secrets.token_urlsafe(16)
-                    pend = _pending[token] = (base64.b32encode(secrets.token_bytes(20)).decode().rstrip('='), time.time())
-            setup = {'setup': True, 'token': token, 'secret': pend[0], 'uri': _otpauth(pend[0])}
-            if not code:
-                return _json(200, setup)
-            if not _totp_ok(pend[0], code):
-                _fail(ip)
-                return _json(401, {**setup, 'error': 'Fel kod – kontrollera att du skannat rätt QR-kod och att telefonens klocka stämmer.'})
-            STORE.kv_set('login_totp', STORE.seal(pend[0].encode()))
-            with _lock:
-                _pending.pop(token, None)
-        else:
-            if not code:
-                return _json(200, {'needCode': True})
-            if not _totp_ok(STORE.unseal(sealed).decode(), code):
-                _fail(ip)
-                return _json(401, {'needCode': True, 'error': 'Fel kod från autentiseringsappen.'})
+    sealed, tid = totp_state()
+    if sealed:
+        # tvåsteg är aktiverat: kod krävs
+        if not code:
+            return _json(200, {'needCode': True})
+        if not _totp_ok(STORE.unseal(sealed).decode(), code):
+            _fail(ip)
+            return _json(401, {'needCode': True, 'error': 'Fel kod från autentiseringsappen.'})
+    elif LOGIN_2FA == 'required' or (LOGIN_2FA == 'optional' and (j.get('enroll') or j.get('setup'))):
+        # registrering: visa QR-kod och spara nyckeln när en kod stämmer
+        token, secret = _pending_get(str(j.get('setup') or ''))
+        setup = {'setup': True, 'token': token, 'secret': secret, 'uri': _otpauth(secret), 'optional': LOGIN_2FA == 'optional'}
+        if not code:
+            return _json(200, setup)
+        if not _totp_ok(secret, code):
+            _fail(ip)
+            return _json(401, {**setup, 'error': 'Fel kod – kontrollera att du skannat rätt QR-kod och att telefonens klocka stämmer.'})
+        tid = _enroll(token, secret)
+    elif LOGIN_2FA == 'optional' and not STORE.kv_get('login_2fa_offered'):
+        # första inloggningen: erbjud tvåsteg (rekommenderas) – går att hoppa över och aktivera senare
+        if not j.get('skip'):
+            return _json(200, {'offer': True})
+        STORE.kv_set('login_2fa_offered', str(int(time.time())))
     with _lock:
         _fails.pop(ip, None)
-    return _json(200, {'ok': True}, [_set_cookie(environ, make_session())])
+    return _json(200, {'ok': True}, [_set_cookie(environ, make_session(tid))])
+
+
+def login2fa_api(environ, path, method):
+    """Visa, aktivera och stänga av tvåstegsinloggningen inifrån appen (Inställningar → Säkerhet)."""
+    if environ.get('HTTP_X_ITINV') != '1' or not _same_origin(environ):
+        return _json(403, {'error': 'Ogiltig begäran.'})
+    sealed, tid = totp_state()
+    if path == '/api/login2fa' and method == 'GET':
+        return _json(200, {'mode': LOGIN_2FA, 'enrolled': bool(tid)})
+    if method != 'POST':
+        return _json(405, {'error': 'Metoden stöds inte.'})
+    ip = environ.get('REMOTE_ADDR', '')
+    if _limited(ip):
+        return _json(429, {'error': 'För många felaktiga koder – vänta några minuter och försök igen.'})
+    try:
+        j = json.loads(_read_body(environ, 4096) or b'{}')
+    except ValueError:
+        return _json(400, {'error': 'Ogiltig begäran.'})
+    if path == '/api/login2fa/setup':
+        if LOGIN_2FA == 'off':
+            return _json(400, {'error': 'Tvåstegsinloggning är avstängd på servern (LOGIN_2FA=off i .env).'})
+        if tid:
+            return _json(400, {'error': 'Tvåstegsinloggning är redan aktiverad.'})
+        token, secret = _pending_get('')
+        return _json(200, {'token': token, 'secret': secret, 'uri': _otpauth(secret)})
+    if path == '/api/login2fa/confirm':
+        token = str(j.get('token') or '')
+        with _lock:
+            pend = _pending.get(token)
+        if not pend:
+            return _json(400, {'error': 'Aktiveringen har gått ut – börja om.'})
+        if not _totp_ok(pend[0], j.get('code')):
+            _fail(ip)
+            return _json(401, {'error': 'Fel kod – kontrollera att du skannat rätt QR-kod och att telefonens klocka stämmer.'})
+        tid = _enroll(token, pend[0])
+        return _json(200, {'ok': True}, [_set_cookie(environ, make_session(tid))])
+    if path == '/api/login2fa/disable':
+        if LOGIN_2FA == 'required':
+            return _json(400, {'error': 'Tvåstegsinloggning krävs av servern (LOGIN_2FA=required i .env).'})
+        if sealed:
+            if not _totp_ok(STORE.unseal(sealed).decode(), j.get('code')):
+                _fail(ip)
+                return _json(401, {'error': 'Fel kod från autentiseringsappen.'})
+            STORE.kv_delete('login_totp')
+        return _json(200, {'ok': True}, [_set_cookie(environ, make_session())])
+    return _json(404, {'error': 'Okänd funktion'})
 
 
 def health():
@@ -304,10 +385,16 @@ def app(environ, start_response):
                     code, headers, body = _json(401, {'error': 'Inloggningen har gått ut – logga in igen.', 'login': True})
                 else:
                     code, headers, body = _redirect('/login')
+            elif path.startswith('/api/login2fa'):
+                code, headers, body = login2fa_api(environ, path, method)
             else:
                 code, headers, body = run_helper(environ)
+                if path == '/api/info' and code == 200:  # berätta för appen om tvåstegsinloggningen
+                    info = json.loads(body)
+                    info['login2fa'] = {'mode': LOGIN_2FA, 'enrolled': bool(totp_state()[1])}
+                    body = json.dumps(info, ensure_ascii=False).encode('utf-8')
                 if sess['exp'] - time.time() < SESSION_HOURS * 3600 - 600:  # glidande: förnya när den är äldre än 10 min
-                    headers = [*headers, _set_cookie(environ, make_session())]
+                    headers = [*headers, _set_cookie(environ, make_session(sess.get('t', '')))]
     except Exception:
         traceback.print_exc()
         code, headers, body = _json(500, {'error': 'Internt fel i servern – se loggen (docker compose logs app).'})

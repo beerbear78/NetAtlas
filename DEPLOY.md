@@ -6,13 +6,16 @@ Uppgifterna krypteras i webbläsaren med ditt huvudlösenord – servern ser ald
 
 ## 1. Kopiera till servern
 
-1. Installera pluginet **Docker Compose Manager** från Community Applications (ger kommandot `docker compose`).
-2. Packa upp `NetAtlas-docker.zip` i `/mnt/user/appdata/netatlas/` (t.ex. via SMB-utdelningen `appdata`).
-   Projektet hamnar då i `/mnt/user/appdata/netatlas/NetAtlas-docker`.
-3. Öppna en terminal i Unraid (ikonen `>_` uppe till höger) och gå till mappen:
+1. Installera pluginet **Docker Compose Manager** från *Apps* (ger kommandot `docker compose`; testat på Unraid 7.1
+   med Compose 2.40).
+2. Ta reda på var dina containrar har sin appdata: *Docker* → klicka på en container → *Edit* och titta på sökvägarna.
+   Standard är `/mnt/user/appdata`, men den kan ligga på annat ställe, t.ex. `/mnt/user/docker/appdata`.
+   Exemplen nedan använder `/mnt/user/appdata` – byt till din sökväg.
+3. Öppna en terminal i Unraid (ikonen `>_` uppe till höger) och hämta koden:
 
 ```bash
-cd /mnt/user/appdata/netatlas/NetAtlas-docker
+git clone https://github.com/beerbear78/NetAtlas.git /mnt/user/appdata/netatlas/src
+cd /mnt/user/appdata/netatlas/src
 ```
 
 ## 2. Skapa `.env`
@@ -24,8 +27,9 @@ nano .env
 ```
 
 Fyll i `APP_PASSWORD` (lösenordet du loggar in med – välj ett eget starkt), `APP_SECRET` och `POSTGRES_PASSWORD`.
-Innehåller ett värde tecknet `$`, sätt det inom enkla citattecken: `APP_PASSWORD='...'`. Ändra också `TLS_HOSTS` (serverns IP och namn) och
-`SCAN_CIDRS` (ditt nät). Sätt `LOGIN_2FA=true` om inloggningen ska kräva en kod från en autentiseringsapp.
+Innehåller ett värde tecknet `$`, sätt det inom enkla citattecken: `APP_PASSWORD='...'`. Ändra också `TLS_HOSTS` (serverns IP och namn),
+`SCAN_CIDRS` (ditt nät) och `APPDATA` (din appdata-sökväg + `/netatlas`). `LOGIN_2FA` styr tvåstegsinloggningen:
+`optional` (standard – erbjuds vid första inloggningen och kan aktiveras senare), `required` (krav) eller `off`.
 `.env` innehåller hemligheter: spara en kopia på ett säkert ställe och checka aldrig in den.
 
 ## 3. Starta
@@ -38,7 +42,8 @@ curl -k https://127.0.0.1:8770/health  # {"status": "ok", "db": "ok"}
 
 Öppna **https://SERVERNS-IP:8770** (eller WebUI i Unraids Docker-flik). Första gången varnar webbläsaren för
 certifikatet eftersom det är självsignerat – välj *Avancerat → Fortsätt*. Logga in med `APP_USER`/`APP_PASSWORD`
-(och skanna QR-koden om `LOGIN_2FA=true`). Skapa sedan ett huvudlösenord, eller flytta dina data enligt steg 4.
+Första gången erbjuds tvåstegsinloggning – den rekommenderas, men du kan hoppa över och aktivera den senare under
+*Inställningar → Säkerhet*. Skapa sedan ett huvudlösenord, eller flytta dina data enligt steg 4.
 
 *Bli av med varningen:* hämta `https://SERVERNS-IP:8770/netatlas.crt`, dubbelklicka och installera det under
 *Lokal dator → Betrodda rotcertifikatutfärdare*. Byter servern IP eller namn: ta bort `app/certs/*.pem` och starta om.
@@ -85,13 +90,23 @@ docker compose logs app | grep -A1 "SSH-nyckel"
 
 ## 7. Uppdatera till ny version
 
-Ersätt projektfilerna (behåll `.env`) och kör:
-
 ```bash
+cd /mnt/user/appdata/netatlas/src
+git pull
 docker compose up -d --build
 ```
 
-Databasen och `app/` rörs inte.
+`.env`, databasen och `app/` rörs inte. Vill du prova en ändring innan den hamnar i `main` (en pull request):
+`git fetch && git checkout grenens-namn && docker compose up -d --build` – och tillbaka med `git checkout main`.
+
+**Röktest** (valfritt, t.ex. efter en uppdatering): kör testet i en separat kopia – det använder egna namn och
+portar (8790/5433), rör inte din installation och städar efter sig:
+
+```bash
+git clone https://github.com/beerbear78/NetAtlas.git /tmp/netatlas-smoke-src
+bash /tmp/netatlas-smoke-src/tests/docker_smoke.sh 192.168.1.0/24 192.168.1.1   # ditt nät och din router
+rm -rf /tmp/netatlas-smoke-src
+```
 
 ## 8. Backup och återställning
 
@@ -107,7 +122,7 @@ docker compose exec -T db pg_dump -U netatlas -d netatlas --clean --if-exists \
 
 ```bash
 docker compose stop app
-docker compose exec -T db psql -U netatlas -d netatlas < /mnt/user/backups/netatlas/netatlas-2026-10-09.sql
+docker compose exec -T db psql -q -U netatlas -d netatlas < /mnt/user/backups/netatlas/netatlas-2026-10-09.sql > /dev/null
 docker compose start app
 ```
 
@@ -119,7 +134,7 @@ därför `.env` tillsammans med backuperna (men på ett säkert ställe). Appens
 
 ```bash
 docker compose exec app python -m server.cli status      # storlek, version, senast sparat
-docker compose exec app python -m server.cli reset-2fa   # tappad telefon: ny QR-kod vid nästa inloggning
+docker compose exec app python -m server.cli reset-2fa   # tappad telefon: logga in utan kod och aktivera igen
 docker compose logs -f app                               # loggar
 ```
 
