@@ -1,0 +1,7 @@
+# Tillval: bygg imagen själv från källkoden i stället för att hämta den färdiga från ghcr.io.
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+# (eller lägg till filen i COMPOSE_FILE i .env, t.ex. COMPOSE_FILE=docker-compose.yml:docker-compose.build.yml)
+services:
+  app:
+    image: netatlas:lokal
+    build: .

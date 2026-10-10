@@ -48,8 +48,15 @@
   request som ägaren granskar. GitHub Actions (`.github/workflows/tester.yml`) kör Python-testerna och Docker-röktestet;
   båda kontrollerna, "Tester (Python)" och "Docker (röktest)", måste vara gröna innan merge.
 - Byter du namn på ett jobb i workflowen måste skyddet av `main` uppdateras med samma namn.
+- Jobbet "Installationsskript" testar `install.sh` mot en lokalt byggd image; det är inte ett krav för merge.
 
 ## Leverans
 
+- `docker-compose.yml` använder den färdiga imagen `ghcr.io/beerbear78/netatlas` (`.github/workflows/image.yml`,
+  amd64 + arm64). Push till `main` ger taggen `main`; en versionstagg ger `X.Y.Z`, `X.Y` och `latest`.
+- **Ny version:** när ägaren vill släppa en version, tagga `main` med `vX.Y.Z` och pusha taggen. Då publiceras
+  imagen och `.github/workflows/release.yml` skapar en release med Windows-zippen (`NetAtlas-windows-vX.Y.Z.zip`).
+- `install.sh` hämtas från `main` av användarna – ändringar där måste fungera både för nya installationer och
+  när skriptet körs igen över en befintlig (då behålls `.env`).
 - Installerade kopior (t.ex. Windows-versionen på port 8770) uppdateras bara när ägaren ber om det.
 - Zip-filer byggs från koden och checkas inte in.

@@ -40,7 +40,8 @@ services:
     container_name: netatlas-test-db
 EOF
 
-dc() { docker compose -p "$PROJ" --env-file "$ENVF" -f docker-compose.yml ${HOSTNET:+-f docker-compose.host.yml} -f "$OVR" "$@"; }
+# bygger från källkoden i den här klonen (docker-compose.build.yml) – testar alltså koden, inte den publicerade imagen
+dc() { docker compose -p "$PROJ" --env-file "$ENVF" -f docker-compose.yml -f docker-compose.build.yml ${HOSTNET:+-f docker-compose.host.yml} -f "$OVR" "$@"; }
 
 healthy() {
   for _ in $(seq 1 60); do

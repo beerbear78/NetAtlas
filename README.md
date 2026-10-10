@@ -17,11 +17,19 @@ husets planlösning – med konton och lösenord som krypteras i webbläsaren.
 
 ## Kom igång
 
-**Windows (lokalt):** kräver Python 3. Dubbelklicka på `Start NetAtlas.bat` – appen öppnas på
-http://127.0.0.1:8770 och datan sparas krypterad i webbläsaren.
+**Windows (lokalt):** kräver [Python 3](https://www.python.org/downloads/). Hämta `NetAtlas-windows-….zip` under
+[Releases](https://github.com/beerbear78/NetAtlas/releases/latest), packa upp och dubbelklicka på `Start NetAtlas.bat` –
+appen öppnas på http://127.0.0.1:8770 och datan sparas krypterad i webbläsaren.
 
-**Server (Docker, t.ex. Unraid):** se [DEPLOY.md](DEPLOY.md). Kort: `cp .env.example .env`, fyll i, och kör
-`docker compose up -d --build`. Två containrar (appen och PostgreSQL 16), HTTPS och inloggning med valfri tvåstegskod.
+**Server (Docker, t.ex. Unraid):** kör som root i serverns terminal – skriptet frågar efter port, lösenord och nät,
+skapar `.env` med slumpade hemligheter och startar allt:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/beerbear78/NetAtlas/main/install.sh | bash
+```
+
+Två containrar (appen från `ghcr.io/beerbear78/netatlas` och PostgreSQL 16), HTTPS och inloggning med valfri
+tvåstegskod. Manuell installation, uppdatering och backup: se [DEPLOY.md](DEPLOY.md).
 
 ## Säkerhet
 
@@ -38,8 +46,10 @@ http://127.0.0.1:8770 och datan sparas krypterad i webbläsaren.
 | `netatlas-helper.py` | webbserver och API för skanning m.m. (bara Pythons standardbibliotek) |
 | `Start NetAtlas.bat` | start i Windows |
 | `server/` | serverläget: inloggning, PostgreSQL-lagring, gunicorn |
-| `Dockerfile`, `docker-compose.yml`, `docker-compose.host.yml`, `.env.example` | Docker |
+| `Dockerfile`, `docker-compose*.yml`, `.env.example` | Docker (`docker-compose.build.yml` bygger från källkoden) |
+| `install.sh` | installationsskript för servern |
 | `tests/` | tester för serverläget (körs utan Docker) |
+| `.github/workflows/` | tester, publicering av imagen och releaser |
 
 ## Utveckling
 
@@ -53,4 +63,4 @@ bash tests/docker_smoke.sh 192.168.1.0/24 192.168.1.1   # på en Docker-värd: h
 
 ## Licens
 
-Ingen licens är vald ännu (alla rättigheter förbehållna). Lägg till en `LICENSE`-fil innan repot görs publikt.
+[MIT](LICENSE) – fritt att använda, ändra och dela vidare.

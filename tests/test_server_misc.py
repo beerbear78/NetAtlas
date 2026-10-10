@@ -101,6 +101,18 @@ if yaml:
     check('compose: inga hårdkodade lösenord', 'POSTGRES_PASSWORD:?' in text and 'APP_PASSWORD:?' in text)
     check('host-override: host-nät + db bara lokalt', c2['services']['app']['network_mode'] == 'host'
           and c2['services']['db']['ports'][0].startswith('127.0.0.1:'))
+    c3 = yaml.load(open(os.path.join(PROJ, 'docker-compose.build.yml'), encoding='utf-8'), Loader=Loader)
+    check('compose: färdig image från ghcr.io (ingen build)', app['image'].startswith('ghcr.io/beerbear78/netatlas:') and 'build' not in app, app.get('image'))
+    check('build-override: bygger från källkoden', c3['services']['app'].get('build') == '.')
+    env_example = open(os.path.join(PROJ, '.env.example'), encoding='utf-8').read()
+    check('.env.example har alla variabler som compose använder', all(v in env_example for v in (
+        'APP_PASSWORD', 'APP_SECRET', 'POSTGRES_PASSWORD', 'NETATLAS_TAG', 'APPDATA', 'PORT', 'LOGIN_2FA')))
+
+# ---- licens och installationsskript ----
+check('MIT-licens finns', 'MIT License' in open(os.path.join(PROJ, 'LICENSE'), encoding='utf-8').read())
+inst = open(os.path.join(PROJ, 'install.sh'), encoding='utf-8').read()
+check('install.sh körs via main() (säkert med curl | bash)', inst.rstrip().endswith('main "$@"'))
+check('install.sh visar aldrig lösenordet', 'read -r -s' in inst and 'echo "$NETATLAS_PASSWORD' not in inst)
 
 # ---- strip_plans (idempotent på en kopia) ----
 tmp = os.path.join(tempfile.mkdtemp(prefix='netatlas-strip-'), 'netatlas.html')

@@ -66,3 +66,48 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.host.yml config --quiet
       - name: Bygg, starta och testa hela Docker-versionen
         run: bash tests/docker_smoke.sh
+
+  install:
+    name: Installationsskript
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bygg imagen lokalt (som den publicerade) och hämta PostgreSQL
+        run: |
+          docker pull -q public.ecr.aws/docker/library/postgres:16-alpine
+          docker tag public.ecr.aws/docker/library/postgres:16-alpine postgres:16-alpine
+          docker build -q --build-arg BASE=public.ecr.aws/docker/library/python:3.12-slim -t ghcr.io/beerbear78/netatlas:ci .
+      - name: Kör install.sh utan frågor
+        env:
+          NETATLAS_SRC: ${{ github.workspace }}
+          NETATLAS_DIR: /tmp/netatlas-install
+          NETATLAS_TAG: ci
+          NETATLAS_PULL: '0'
+          NETATLAS_YES: '1'
+          NETATLAS_PASSWORD: ci-test-losenord
+          NETATLAS_PORT: '8796'
+          NETATLAS_HOSTNET: nej
+        run: bash install.sh
+      - name: Appen svarar och inloggningen fungerar
+        run: |
+          curl -fsk https://127.0.0.1:8796/health
+          echo
+          curl -fsk -H 'Content-Type: application/json' -d '{"user":"admin","pass":"ci-test-losenord"}' https://127.0.0.1:8796/login | tee /tmp/l1.json
+          grep -q '"offer": true' /tmp/l1.json
+          curl -fsk -H 'Content-Type: application/json' -d '{"user":"admin","pass":"ci-test-losenord","skip":true}' https://127.0.0.1:8796/login | tee /tmp/l2.json
+          grep -q '"ok": true' /tmp/l2.json
+      - name: Kör install.sh igen (uppdatering, .env behålls)
+        env:
+          NETATLAS_SRC: ${{ github.workspace }}
+          NETATLAS_DIR: /tmp/netatlas-install
+          NETATLAS_TAG: ci
+          NETATLAS_PULL: '0'
+          NETATLAS_YES: '1'
+        run: |
+          bash install.sh | tee /tmp/upd.log
+          grep -q "behålls" /tmp/upd.log
+          curl -fsk https://127.0.0.1:8796/health
+      - name: Städa
+        if: always()
+        run: cd /tmp/netatlas-install && docker compose down -v || true

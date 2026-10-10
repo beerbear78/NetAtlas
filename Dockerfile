@@ -1,5 +1,12 @@
 # NetAtlas – IT-inventarie med planritningar, nätverksskanning och krypterade lösenord.
-FROM python:3.12-slim
+# BASE kan pekas om till en spegel av Docker Hub, t.ex. public.ecr.aws/docker/library/python:3.12-slim
+ARG BASE=python:3.12-slim
+FROM ${BASE}
+
+LABEL org.opencontainers.image.title="NetAtlas" \
+      org.opencontainers.image.description="IT-inventarie på planritningen med nätverksskanning och krypterade lösenord" \
+      org.opencontainers.image.source="https://github.com/beerbear78/NetAtlas" \
+      org.opencontainers.image.licenses="MIT"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
