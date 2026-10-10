@@ -31,7 +31,8 @@ curl -fsSL https://raw.githubusercontent.com/beerbear78/NetAtlas/main/install.sh
 ```
 
 Two containers (the app from `ghcr.io/beerbear78/netatlas` and PostgreSQL 16), HTTPS and sign-in with optional
-two-factor authentication. Manual installation, updates and backups: see [DEPLOY.md](DEPLOY.md).
+two-factor authentication. On Unraid it shows up under *Compose* in the Docker tab and is updated with
+*Update Stack*. Manual installation, updates and backups: see [DEPLOY.md](DEPLOY.md).
 
 ## Security
 

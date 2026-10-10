@@ -68,6 +68,7 @@ done
 
 if [ -f .env ]; then
   say "$(L "Befintlig .env hittades i $DIR – den behålls (uppdatering)." "Existing .env found in $DIR – it is kept (update).")"
+  UPDATED=1
 else
   ask NETATLAS_PORT "$(L 'Port för webbgränssnittet (HTTPS)' 'Port for the web interface (HTTPS)')" "8770"
   ask NETATLAS_USER "$(L 'Användarnamn för inloggningen' 'Username for signing in')" "admin"
@@ -117,6 +118,22 @@ else
   say "$(L ".env skapad i $DIR (lösenord och nycklar ligger där – spara en kopia på ett säkert ställe)." ".env created in $DIR (passwords and keys are stored there – keep a copy in a safe place).")"
 fi
 
+# ---- Unraid: visa NetAtlas under Compose i Docker-fliken (pluginet Compose Manager), uppdatering med en knapp ----
+# Pluginet kör "docker compose -f <stack>/docker-compose.yml -f <stack>/docker-compose.override.yml --env-file …",
+# så host-läget läggs som override (alltid sist) och .env pekas ut med envpath.
+CM=/boot/config/plugins/compose.manager/projects
+if [ -d "$CM" ]; then
+  P="$CM/netatlas"
+  mkdir -p "$P"
+  printf 'netatlas' > "$P/name"
+  rm -f "$P/indirect"
+  cp docker-compose.yml "$P/docker-compose.yml"
+  if grep -qE '^COMPOSE_FILE=.*docker-compose\.host\.yml' .env; then cp docker-compose.host.yml "$P/docker-compose.override.yml"
+  else rm -f "$P/docker-compose.override.yml"; fi
+  printf '%s' "$DIR/.env" > "$P/envpath"
+  CM_OK=1
+fi
+
 # ---- starta ----
 docker compose config --quiet || die "$(L "Ogiltig konfiguration i $DIR/.env" "Invalid configuration in $DIR/.env")"
 if [ "$PULL" = 1 ]; then docker compose pull --quiet || die "$(L 'Kunde inte hämta imagen. Är du ansluten till internet?' 'Could not pull the image. Are you connected to the internet?')"; fi
@@ -131,18 +148,23 @@ PORT_NOW=$(grep -E '^PORT=' .env | cut -d= -f2)
 URL="https://${IP:-$(L SERVERNS-IP SERVER-IP)}:${PORT_NOW:-8770}"
 
 say ""
-if [ -n "$SV" ]; then
+if [ -n "${UPDATED:-}" ]; then
+  say "== $(L 'Klart! NetAtlas är uppdaterad och körs på' 'Done! NetAtlas is updated and running at')  $URL"
+  if [ -n "${CM_OK:-}" ]; then say "   $(L 'Nästa gång: Docker-fliken → Compose → netatlas → Update Stack.' 'Next time: Docker tab → Compose → netatlas → Update Stack.')"; fi
+elif [ -n "$SV" ]; then
   say "== Klart! NetAtlas körs."
   say "   Öppna  $URL  och logga in med användarnamnet och lösenordet du valde."
   say "   Första gången varnar webbläsaren för certifikatet (självsignerat) – välj Avancerat → Fortsätt."
   say "   Sedan skapar du ett huvudlösenord som krypterar all data i webbläsaren."
   say "   Uppdatera senare:  cd $DIR && docker compose pull && docker compose up -d"
+  if [ -n "${CM_OK:-}" ]; then say "   … eller i Unraid: Docker-fliken → Compose → netatlas → Update Stack."; fi
 else
   say "== Done! NetAtlas is running."
   say "   Open  $URL  and sign in with the username and password you chose."
   say "   The first time, the browser warns about the certificate (self-signed) – choose Advanced → Proceed."
   say "   Then you create a master password that encrypts all data in the browser."
   say "   Update later:  cd $DIR && docker compose pull && docker compose up -d"
+  if [ -n "${CM_OK:-}" ]; then say "   … or in Unraid: Docker tab → Compose → netatlas → Update Stack."; fi
 fi
 }
 

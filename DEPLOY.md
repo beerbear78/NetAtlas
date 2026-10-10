@@ -114,6 +114,13 @@ docker compose logs app | grep -A1 "SSH"
 
 ## 6. Update to a new version
 
+**Unraid:** *Docker* tab → the *Compose* section at the bottom → **netatlas** → **Update Stack**. The installer
+registers NetAtlas there when the Docker Compose Manager plugin is installed (for an older installation: run the
+installer again). Don't use Unraid's own update link on the containers – it only works for containers created from
+Unraid templates and fails with "image not found".
+
+**Terminal (all systems):**
+
 ```bash
 cd /mnt/user/appdata/netatlas
 docker compose pull
@@ -189,6 +196,7 @@ Sign out: `https://SERVER-IP:8770/logout`.
 | The database is slow | Put `APPDATA` directly on the cache pool, e.g. `/mnt/cache/appdata/netatlas`. |
 | "Could not pull the image" / `manifest unknown` | Check the internet connection and `NETATLAS_TAG` in `.env` (does the version exist under *Releases*?). |
 | Unraid: `docker compose` is missing | Install the *Docker Compose Manager* plugin from *Apps*. |
+| Unraid: "image not found" when updating in the Docker tab | Use *Compose → netatlas → Update Stack* (or the terminal), see step 6. |
 
 **A regular Linux server instead of Unraid:** the installer works the same way (it suggests `/opt/netatlas`).
 If you want the files to be owned by your own user: set `PUID`/`PGID` in `.env` (`id -u`, `id -g`).
