@@ -192,7 +192,10 @@ body.nolist #listPane{display:none}
 #tip{position:absolute;left:12px;bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;color:var(--muted);pointer-events:none;box-shadow:var(--shadow)}
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
 #modal .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px;width:min(420px,100%);box-shadow:var(--shadow-lg);position:relative}
-#modal .card>.langsel{position:absolute;top:20px;right:20px;width:auto;font-size:12px;padding:3px 6px}
+.langsel{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+.langsel .ic{width:16px;height:16px}
+.langsel select{width:auto;font-size:12px;padding:3px 6px}
+#modal .card>.langsel{position:absolute;top:20px;right:20px}
 #modal h2{margin:0 0 6px;font-size:18px}
 #modal p{margin:0 0 10px;color:var(--muted);font-size:13px}
 #modal .err{color:var(--danger);font-size:13px;min-height:18px;margin-top:6px}
@@ -237,6 +240,10 @@ body.nolist #listPane{display:none}
 #clkD{font-size:11px;color:var(--muted);white-space:nowrap}
 #btnLive{display:inline-flex;align-items:center;gap:7px;border-radius:999px;padding:5px 12px 5px 10px;font-size:13px;font-weight:600;color:var(--muted);flex-shrink:0;font-variant-numeric:tabular-nums}
 #btnLive i{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.5}
+#btnLang{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 11px 5px 9px;font-size:12.5px;color:var(--muted);flex-shrink:0}
+#btnLang .ic{width:16px;height:16px}
+#btnLang b{font-weight:650;letter-spacing:.03em}
+#btnLang:hover{color:var(--text)}
 #btnLive.on{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
 #btnLive.on i{opacity:1;animation:livepulse 2s ease-out infinite}
 #btnLive.on.part{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
@@ -429,6 +436,8 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
 @media (max-width:760px){
   #nav{width:56px;padding:10px 6px}
   #top{gap:8px;padding:0 10px}
+  #btnLang{padding:5px 7px}
+  #btnLang b{display:none}
   #siteSel{max-width:130px}
   #main{display:block;overflow:auto}
   body[data-page] #main{overflow:hidden}
@@ -442,6 +451,13 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
   .dlg .sd{border-radius:0;border:0}
   .dlg .sdh{padding:10px 14px}
   .dlg .sdb{padding:0 14px 20px}
+}
+@media (max-width:520px){
+  #top .site>.ic{display:none}
+  #siteSel{max-width:96px;padding:6px 4px}
+  .sbox{min-width:64px}
+  .sbox input{padding-right:8px}
+  #btnLive{padding:5px 9px 5px 8px}
 }
 @media (prefers-reduced-motion:reduce){#btnLive.on i{animation:none}}
 </style>
@@ -476,6 +492,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
       <div class="sbox" title="Tips: is:offline, is:online, is:larm, typ:camera, tag:kök, vlan:20, rum:kök"><i data-ic="search"></i><input id="search" type="search" placeholder="Sök namn, IP, MAC, rum…" aria-label="Sök enheter" spellcheck="false"><kbd>Ctrl K</kbd></div>
       <div class="spacer"></div>
       <span id="status"></span>
+      <button id="btnLang" title="Språk / Language" aria-label="Språk / Language"><i data-ic="globe"></i><b>SV</b></button>
       <button id="btnLive"><i></i>Live</button>
       <div id="clock"><span id="clkT"></span><span id="clkD"></span></div>
       <span hidden><button id="btnExport"></button><button id="btnImport"></button><button id="btnCsv"></button><button id="btnPw"></button></span>
@@ -1814,10 +1831,11 @@ function setLang(l){
   LANG = l; LOC = l === 'en' ? 'en-GB' : 'sv-SE';
   document.documentElement.lang = l;
   try{ localStorage.setItem('netatlas.lang', l); }catch{}
-  txStatic();
+  txStatic(); langBtn();
   if(db) relangUI();
 }
-const langSelect = (attr = 'data-lang') => `<select class="langsel" ${attr} aria-label="Språk / Language">${Object.entries(LANGS).map(([k, n]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
+function langBtn(){ const b = document.querySelector('#btnLang b'); if(b) b.textContent = LANG.toUpperCase(); }
+const langSelect = (attr = 'data-lang') => `<span class="langsel" title="Språk / Language">${ic('globe')}<select ${attr} aria-label="Språk / Language">${Object.entries(LANGS).map(([k, n]) => `<option value="${k}" ${k === LANG ? 'selected' : ''}>${n}</option>`).join('')}</select></span>`;
 
 /* ---------- Ikoner (enkla linjeikoner, ritade för NetAtlas) ---------- */
 const IC = {
@@ -1846,7 +1864,8 @@ const IC = {
   undo:'<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   redo:'<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
   x:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
-  back:'<path d="M14.5 18 8.5 12l6-6"/>'
+  back:'<path d="M14.5 18 8.5 12l6-6"/>',
+  globe:'<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.3 2.4 3.5 5.2 3.5 8.5s-1.2 6.1-3.5 8.5c-2.3-2.4-3.5-5.2-3.5-8.5s1.2-6.1 3.5-8.5z"/>'
 };
 const ic = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ''}</svg>`;
 const TYPES = {
@@ -2221,6 +2240,8 @@ function relangUI(){
   renderView();
 }
 document.getElementById('gDlg').addEventListener('change', e => { if(e.target.matches('[data-setlang]')) setLang(e.target.value); });
+document.getElementById('btnLang').onclick = () => { const ks = Object.keys(LANGS); setLang(ks[(ks.indexOf(LANG) + 1) % ks.length]); };
+langBtn();
 
 /* ---------- Rendering ---------- */
 function renderAll(){ renderPlanSel(); renderBg(); renderLayers(); renderList(); renderPanel(); }

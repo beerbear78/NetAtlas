@@ -13,7 +13,7 @@ husets planlösning – med konton och lösenord som krypteras i webbläsaren.
 - **Nätverk** – skanning (ping, ARP, portar, tillverkare), Live-status, IP-plan, Shelly Gen1–Gen4
 - **Rutiner och jobb** – import från Home Assistant, Unraid och Linux (cron/systemd via SSH)
 - **Avtal och licenser**, säkerhetskopior (lokalt, synkmapp, S3/WebDAV), mobilkopia, utskrift och tvåstegsinloggning
-- **Svenska och engelska** – välj språk på inloggningsrutan eller under Inställningar
+- **Svenska och engelska** – byt med jordgloben (🌐) i toppfältet, på inloggningsrutan eller under Inställningar
 
 ## Kom igång
 

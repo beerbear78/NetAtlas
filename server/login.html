@@ -22,7 +22,9 @@
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;display:flex;align-items:center;justify-content:center;padding:16px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px;width:min(400px,100%);box-shadow:var(--shadow-lg);position:relative}
-.langsel{position:absolute;top:20px;right:20px;width:auto;font:12px system-ui,sans-serif;color:inherit;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px 6px}
+.langsel{position:absolute;top:20px;right:20px;display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+.langsel svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.langsel select{font:12px system-ui,sans-serif;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px 6px}
 .logo{width:44px;height:44px;display:block;margin:0 0 14px}
 h1{font-size:18px;margin:0 0 6px}
 p{margin:0 0 10px;color:var(--muted);font-size:13px}
@@ -46,7 +48,7 @@ code{display:block;font:13px/1.5 ui-monospace,Consolas,monospace;word-break:brea
 </head>
 <body>
 <form class="card" id="f" novalidate>
-  <select class="langsel" id="lang" aria-label="Språk / Language"><option value="sv">Svenska</option><option value="en">English</option></select>
+  <span class="langsel" title="Språk / Language"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.3 2.4 3.5 5.2 3.5 8.5s-1.2 6.1-3.5 8.5c-2.3-2.4-3.5-5.2-3.5-8.5s1.2-6.1 3.5-8.5z"/></svg><select id="lang" aria-label="Språk / Language"><option value="sv">Svenska</option><option value="en">English</option></select></span>
   <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" style="fill:var(--accent)"/><path d="M16 9.5 9.5 21.5h13z" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="9.5" r="2.9" fill="#fff"/><circle cx="9.5" cy="21.5" r="2.9" fill="#fff"/><circle cx="22.5" cy="21.5" r="2.9" fill="#fff"/></svg>
   <h1 id="title">Logga in på NetAtlas</h1>
   <p id="intro">Logga in på servern. Därefter låser du upp dina uppgifter med huvudlösenordet som vanligt.</p>
