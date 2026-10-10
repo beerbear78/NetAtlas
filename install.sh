@@ -68,6 +68,7 @@ done
 
 if [ -f .env ]; then
   say "$(L "Befintlig .env hittades i $DIR – den behålls (uppdatering)." "Existing .env found in $DIR – it is kept (update).")"
+  UPDATED=1
 else
   ask NETATLAS_PORT "$(L 'Port för webbgränssnittet (HTTPS)' 'Port for the web interface (HTTPS)')" "8770"
   ask NETATLAS_USER "$(L 'Användarnamn för inloggningen' 'Username for signing in')" "admin"
@@ -147,7 +148,10 @@ PORT_NOW=$(grep -E '^PORT=' .env | cut -d= -f2)
 URL="https://${IP:-$(L SERVERNS-IP SERVER-IP)}:${PORT_NOW:-8770}"
 
 say ""
-if [ -n "$SV" ]; then
+if [ -n "${UPDATED:-}" ]; then
+  say "== $(L 'Klart! NetAtlas är uppdaterad och körs på' 'Done! NetAtlas is updated and running at')  $URL"
+  if [ -n "${CM_OK:-}" ]; then say "   $(L 'Nästa gång: Docker-fliken → Compose → netatlas → Update Stack.' 'Next time: Docker tab → Compose → netatlas → Update Stack.')"; fi
+elif [ -n "$SV" ]; then
   say "== Klart! NetAtlas körs."
   say "   Öppna  $URL  och logga in med användarnamnet och lösenordet du valde."
   say "   Första gången varnar webbläsaren för certifikatet (självsignerat) – välj Avancerat → Fortsätt."
