@@ -18,9 +18,7 @@ oui.txt
 *.zip
 *.bat
 IT-inventarie
-DEPLOY.md
-README.md
-CLAUDE.md
+*.md
 .gitattributes
 tests
 .github

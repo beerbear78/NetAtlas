@@ -97,8 +97,9 @@ jobs:
           grep -q '"offer": true' /tmp/l1.json
           curl -fsk -H 'Content-Type: application/json' -d '{"user":"admin","pass":"ci-test-losenord","skip":true}' https://127.0.0.1:8796/login | tee /tmp/l2.json
           grep -q '"ok": true' /tmp/l2.json
-      - name: Kör install.sh igen (uppdatering, .env behålls)
+      - name: Kör install.sh igen på svenska (uppdatering, .env behålls)
         env:
+          NETATLAS_LANG: sv
           NETATLAS_SRC: ${{ github.workspace }}
           NETATLAS_DIR: /tmp/netatlas-install
           NETATLAS_TAG: ci

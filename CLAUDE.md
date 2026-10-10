@@ -1,6 +1,10 @@
 # NetAtlas – anvisningar för Claude
 
-- Svara på svenska. UI-texter, kodkommentarer och commit-meddelanden skrivs på svenska.
+- Svara på svenska. Kodkommentarer och commit-meddelanden skrivs på svenska. Gränssnittet finns på svenska och
+  engelska (se Regler).
+- Dokumentationen på GitHub är engelsk med svensk kopia: `README.md`/`README.sv.md` och `DEPLOY.md`/`DEPLOY.sv.md`.
+  Ändra båda språken. `install.sh`, konsoltexterna i `netatlas-helper.py` (`con(sv, en)`), `Start NetAtlas.bat`
+  och Windows-zippens README.txt (i `release.yml`) är tvåspråkiga.
 - Ägaren är IT-tekniker och kör NetAtlas på Unraid. Förklara kort, inte grundläggande saker.
 
 ## Två lägen i samma kod
