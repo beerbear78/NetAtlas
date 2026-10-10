@@ -113,6 +113,12 @@ check('MIT-licens finns', 'MIT License' in open(os.path.join(PROJ, 'LICENSE'), e
 inst = open(os.path.join(PROJ, 'install.sh'), encoding='utf-8').read()
 check('install.sh körs via main() (säkert med curl | bash)', inst.rstrip().endswith('main "$@"'))
 check('install.sh visar aldrig lösenordet', 'read -r -s' in inst and 'echo "$NETATLAS_PASSWORD' not in inst)
+check('install.sh lägger in stacken i Compose Manager (host-läget som override, .env via envpath)',
+      'compose.manager/projects' in inst and 'docker-compose.override.yml' in inst and 'envpath' in inst)
+if yaml:
+    icon = app['labels'].get('net.unraid.docker.icon', '')
+    check('compose: Unraid-ikonen finns i repot', icon.endswith('/main/assets/netatlas-icon.png')
+          and os.path.isfile(os.path.join(PROJ, 'assets', 'netatlas-icon.png')), icon)
 
 # ---- strip_plans (idempotent på en kopia) ----
 tmp = os.path.join(tempfile.mkdtemp(prefix='netatlas-strip-'), 'netatlas.html')

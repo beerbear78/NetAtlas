@@ -39,8 +39,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 40s
-    labels:
+    labels:  # ikon, WebUI-länk och konsol i Unraids Docker-flik
       net.unraid.docker.webui: "https://[IP]:[PORT:${PORT:-8770}]/"
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/beerbear78/NetAtlas/main/assets/netatlas-icon.png"
+      net.unraid.docker.shell: "bash"
 
   db:
     image: postgres:16-alpine
@@ -59,4 +61,7 @@ services:
       timeout: 5s
       retries: 6
       start_period: 20s
+    labels:
+      net.unraid.docker.icon: "https://raw.githubusercontent.com/beerbear78/NetAtlas/main/assets/netatlas-icon.png"
+      net.unraid.docker.shell: "sh"
     # ingen port publiceras: databasen nås bara av appen i det interna nätet

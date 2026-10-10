@@ -111,6 +111,13 @@ docker compose logs app | grep -A1 "SSH-nyckel"
 
 ## 6. Uppdatera till ny version
 
+**Unraid:** fliken *Docker* → avsnittet *Compose* längst ner → **netatlas** → **Update Stack**. Installationsskriptet
+lägger in NetAtlas där när pluginet Docker Compose Manager finns (äldre installation: kör skriptet igen). Använd inte
+Unraids egen uppdateringslänk på containrarna – den fungerar bara för containrar som skapats från Unraids mallar och
+ger "image not found".
+
+**Terminal (alla system):**
+
 ```bash
 cd /mnt/user/appdata/netatlas
 docker compose pull
@@ -186,6 +193,7 @@ Logga ut: `https://SERVERNS-IP:8770/logout`.
 | Databasen långsam | Lägg `APPDATA` direkt på cache-poolen, t.ex. `/mnt/cache/appdata/netatlas`. |
 | "Kunde inte hämta imagen" / `manifest unknown` | Kontrollera internet och `NETATLAS_TAG` i `.env` (finns versionen under *Releases*?). |
 | Unraid: `docker compose` saknas | Installera pluginet *Docker Compose Manager* från *Apps*. |
+| Unraid: "image not found" vid uppdatering i Docker-fliken | Använd *Compose → netatlas → Update Stack* (eller terminalen), se steg 6. |
 
 **Vanlig Linux-server i stället för Unraid:** installationsskriptet fungerar likadant (föreslår `/opt/netatlas`).
 Vill du att filerna ska ägas av din egen användare: sätt `PUID`/`PGID` i `.env` (`id -u`, `id -g`).
