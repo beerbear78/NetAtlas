@@ -1,0 +1,42 @@
+# Skapar en release på GitHub när en versionstagg (vX.Y.Z) pushas, med Windows-versionen som zip.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Windows-zip och release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bygg zip för Windows
+        run: |
+          mkdir -p dist/NetAtlas
+          cp netatlas.html netatlas-helper.py "Start NetAtlas.bat" LICENSE dist/NetAtlas/
+          cat > dist/NetAtlas/Instruktioner.txt <<'EOF'
+          NetAtlas för Windows
+          ====================
+          1. Kräver Python 3 (https://www.python.org/downloads/ – kryssa i "Add python.exe to PATH").
+          2. Packa upp mappen på ett ställe med kort sökväg, t.ex. direkt i Hämtade filer.
+          3. Dubbelklicka på "Start NetAtlas.bat". NetAtlas öppnas på http://127.0.0.1:8770
+             Låt det svarta fönstret vara öppet medan du använder NetAtlas.
+
+          All data krypteras med ditt huvudlösenord och sparas i webbläsaren.
+          Server-/Docker-versionen och mer information: https://github.com/beerbear78/NetAtlas
+          EOF
+          sed -i 's/^          //' dist/NetAtlas/Instruktioner.txt
+          sed -i 's/$/\r/' dist/NetAtlas/Instruktioner.txt
+          cd dist && zip -qr "NetAtlas-windows-${GITHUB_REF_NAME}.zip" NetAtlas
+          unzip -l "NetAtlas-windows-${GITHUB_REF_NAME}.zip"
+      - name: Skapa release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "dist/NetAtlas-windows-${GITHUB_REF_NAME}.zip" \
+            --title "NetAtlas ${GITHUB_REF_NAME}" --generate-notes --verify-tag
