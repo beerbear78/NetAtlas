@@ -13,6 +13,7 @@ husets planlösning – med konton och lösenord som krypteras i webbläsaren.
 - **Nätverk** – skanning (ping, ARP, portar, tillverkare), Live-status, IP-plan, Shelly Gen1–Gen4
 - **Rutiner och jobb** – import från Home Assistant, Unraid och Linux (cron/systemd via SSH)
 - **Avtal och licenser**, säkerhetskopior (lokalt, synkmapp, S3/WebDAV), mobilkopia, utskrift och tvåstegsinloggning
+- **Svenska och engelska** – välj språk på inloggningsrutan eller under Inställningar
 
 ## Kom igång
 
@@ -45,6 +46,7 @@ http://127.0.0.1:8770 och datan sparas krypterad i webbläsaren.
 ```bash
 python tests/test_server_api.py     # inloggning, valv, bilagor, säkerhetskopior
 python tests/test_server_misc.py    # migrering, administration, compose-filer
+python tests/test_i18n.py           # svenska/engelska: saknade översättningar och kvarglömd svenska
 python tests/server_harness.py      # prova serverläget i webbläsaren: http://localhost:8783
 bash tests/docker_smoke.sh 192.168.1.0/24 192.168.1.1   # på en Docker-värd: hela Docker-versionen, städar själv
 ```

@@ -21,7 +21,8 @@
 [hidden]{display:none!important}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;display:flex;align-items:center;justify-content:center;padding:16px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px;width:min(400px,100%);box-shadow:var(--shadow-lg)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px;width:min(400px,100%);box-shadow:var(--shadow-lg);position:relative}
+.langsel{position:absolute;top:20px;right:20px;width:auto;font:12px system-ui,sans-serif;color:inherit;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:3px 6px}
 .logo{width:44px;height:44px;display:block;margin:0 0 14px}
 h1{font-size:18px;margin:0 0 6px}
 p{margin:0 0 10px;color:var(--muted);font-size:13px}
@@ -45,6 +46,7 @@ code{display:block;font:13px/1.5 ui-monospace,Consolas,monospace;word-break:brea
 </head>
 <body>
 <form class="card" id="f" novalidate>
+  <select class="langsel" id="lang" aria-label="Språk / Language"><option value="sv">Svenska</option><option value="en">English</option></select>
   <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" style="fill:var(--accent)"/><path d="M16 9.5 9.5 21.5h13z" fill="none" stroke="#fff" stroke-opacity=".75" stroke-width="1.8" stroke-linejoin="round"/><circle cx="16" cy="9.5" r="2.9" fill="#fff"/><circle cx="9.5" cy="21.5" r="2.9" fill="#fff"/><circle cx="22.5" cy="21.5" r="2.9" fill="#fff"/></svg>
   <h1 id="title">Logga in på NetAtlas</h1>
   <p id="intro">Logga in på servern. Därefter låser du upp dina uppgifter med huvudlösenordet som vanligt.</p>
@@ -62,8 +64,7 @@ code{display:block;font:13px/1.5 ui-monospace,Consolas,monospace;word-break:brea
   <div id="offer" hidden>
     <div class="callout">
       <b>Tvåstegsinloggning rekommenderas</b>
-      Skydda inloggningen med en kod från en autentiseringsapp i mobilen (t.ex. Microsoft eller Google Authenticator).
-      Då räcker det inte att någon får tag på lösenordet – särskilt viktigt om NetAtlas nås utanför hemmanätet.
+      <span>Skydda inloggningen med en kod från en autentiseringsapp i mobilen (t.ex. Microsoft eller Google Authenticator). Då räcker det inte att någon får tag på lösenordet – särskilt viktigt om NetAtlas nås utanför hemmanätet.</span>
       <p>Du kan också hoppa över nu och aktivera det senare under Inställningar → Säkerhet.</p>
     </div>
     <button type="button" id="enrollBtn">Aktivera tvåstegsinloggning</button>
@@ -77,10 +78,74 @@ code{display:block;font:13px/1.5 ui-monospace,Consolas,monospace;word-break:brea
   <button id="btn" type="submit">Logga in</button>
   <button type="button" class="sec" id="skip2" hidden>Hoppa över – aktivera senare</button>
 </form>
+<script id="i18n" type="application/json">
+{"en": {
+    "Logga in – NetAtlas": "Sign in – NetAtlas",
+    "Logga in på NetAtlas": "Sign in to NetAtlas",
+    "Logga in på servern. Därefter låser du upp dina uppgifter med huvudlösenordet som vanligt.": "Sign in to the server. Then unlock your data with the master password as usual.",
+    "Användarnamn": "Username",
+    "Lösenord": "Password",
+    "Skanna QR-koden med din autentiseringsapp (t.ex. Microsoft eller Google Authenticator). Det går också att skriva in nyckeln manuellt.": "Scan the QR code with your authenticator app (e.g. Microsoft or Google Authenticator). You can also enter the key manually.",
+    "Tvåstegsinloggning rekommenderas": "Two-factor authentication is recommended",
+    "Skydda inloggningen med en kod från en autentiseringsapp i mobilen (t.ex. Microsoft eller Google Authenticator). Då räcker det inte att någon får tag på lösenordet – särskilt viktigt om NetAtlas nås utanför hemmanätet.": "Protect the sign-in with a code from an authenticator app on your phone (e.g. Microsoft or Google Authenticator). Then knowing the password is not enough – especially important if NetAtlas can be reached from outside your home network.",
+    "Du kan också hoppa över nu och aktivera det senare under Inställningar → Säkerhet.": "You can also skip this now and turn it on later under Settings → Security.",
+    "Aktivera tvåstegsinloggning": "Turn on two-factor authentication",
+    "Hoppa över": "Skip",
+    "Kod från autentiseringsappen": "Code from the authenticator app",
+    "Logga in": "Sign in",
+    "Hoppa över – aktivera senare": "Skip – turn on later",
+    "QR-koden kunde inte visas (kräver internet). Skriv in nyckeln nedan i appen.": "The QR code could not be shown (requires internet). Enter the key below in the app.",
+    "Skydda inloggningen": "Protect your sign-in",
+    "Skanna QR-koden och ange koden som visas i appen. Det behöver bara göras en gång.": "Scan the QR code and enter the code shown in the app. This only needs to be done once.",
+    "Servern kräver tvåstegsinloggning. Det här behöver bara göras en gång.": "The server requires two-factor authentication. This only needs to be done once.",
+    "Aktivera och logga in": "Turn on and sign in",
+    "Tvåstegsinloggning": "Two-factor authentication",
+    "Ange koden som visas i din autentiseringsapp.": "Enter the code shown in your authenticator app.",
+    "Ogiltigt svar från servern.": "Invalid response from the server.",
+    "Kunde inte nå servern.": "Could not reach the server.",
+    "Ogiltig begäran.": "Invalid request.",
+    "För många misslyckade försök – vänta några minuter och försök igen.": "Too many failed attempts – wait a few minutes and try again.",
+    "Fel användarnamn eller lösenord.": "Wrong username or password.",
+    "Fel kod från autentiseringsappen.": "Wrong code from the authenticator app.",
+    "Fel kod – kontrollera att du skannat rätt QR-kod och att telefonens klocka stämmer.": "Wrong code – check that you scanned the right QR code and that your phone’s clock is correct.",
+    "Metoden stöds inte.": "Method not supported.",
+    "Inloggningen har gått ut – logga in igen.": "Your sign-in has expired – sign in again.",
+    "Internt fel i servern – se loggen (docker compose logs app).": "Internal server error – see the log (docker compose logs app)."
+  }}
+</script>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-let setupToken = '';
+let setupToken = '', last = null, lastErr = '';
+
+/* Språk: samma val som i appen (sparas i webbläsaren). Nyckeln är den svenska texten. */
+const I18N = JSON.parse($('i18n').textContent);
+let LANG = (() => {
+  try{ const l = localStorage.getItem('netatlas.lang'); if(l === 'sv' || l === 'en') return l; }catch{}
+  return (navigator.languages || [navigator.language || '']).some(l => /^sv\b/i.test(l)) ? 'sv' : 'en';
+})();
+const tx = s => (LANG !== 'sv' && Object.hasOwn(I18N[LANG] || {}, s)) ? I18N[LANG][s] : s;
+const STATIC = [];
+function txStatic(){
+  if(!STATIC.length){
+    const w = document.createTreeWalker($('f'), NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+    for(let n = w.currentNode; n; n = w.nextNode()){
+      if(n.nodeType === 3){ const s = n.nodeValue.replace(/\s+/g, ' ').trim(); if(Object.hasOwn(I18N.en, s)) STATIC.push([n, s]); }
+    }
+  }
+  document.title = tx('Logga in – NetAtlas');
+  for(const [n, s] of STATIC){ n.nodeValue = n.nodeValue.replace(/^(\s*)[\s\S]*?(\s*)$/, (m, b, e) => b + tx(s) + e); }
+  document.documentElement.lang = LANG;
+  $('lang').value = LANG;
+}
+txStatic();
+$('lang').onchange = () => {
+  LANG = $('lang').value;
+  try{ localStorage.setItem('netatlas.lang', LANG); }catch{}
+  txStatic();
+  if(last) step(last);
+  $('err').textContent = tx(lastErr);
+};
 
 function loadQrLib(){
   return window.qrcode ? Promise.resolve() : new Promise((res, rej) => {
@@ -98,7 +163,7 @@ async function showQr(uri){
     await loadQrLib();
     const q = qrcode(0, 'M'); q.addData(uri); q.make();
     $('qr').innerHTML = q.createSvgTag({cellSize:4, margin:4, scalable:true});
-  }catch{ $('qr').innerHTML = '<p>QR-koden kunde inte visas (kräver internet). Skriv in nyckeln nedan i appen.</p>'; }
+  }catch{ $('qr').innerHTML = `<p>${tx('QR-koden kunde inte visas (kräver internet). Skriv in nyckeln nedan i appen.')}</p>`; }
 }
 function show(part){
   // part: cred | offer | setup | code
@@ -109,39 +174,40 @@ function show(part){
   $('btn').hidden = part === 'offer';
 }
 function step(j){
+  if(j.offer || j.setup || j.needCode) last = j;
   if(j.offer){
-    $('title').textContent = 'Skydda inloggningen';
+    $('title').textContent = tx('Skydda inloggningen');
     $('intro').hidden = true;
     show('offer'); $('enrollBtn').focus();
   } else if(j.setup){
     setupToken = j.token;
-    $('title').textContent = 'Aktivera tvåstegsinloggning';
+    $('title').textContent = tx('Aktivera tvåstegsinloggning');
     $('intro').hidden = false;
-    $('intro').textContent = j.optional ? 'Skanna QR-koden och ange koden som visas i appen. Det behöver bara göras en gång.'
-      : 'Servern kräver tvåstegsinloggning. Det här behöver bara göras en gång.';
+    $('intro').textContent = j.optional ? tx('Skanna QR-koden och ange koden som visas i appen. Det behöver bara göras en gång.')
+      : tx('Servern kräver tvåstegsinloggning. Det här behöver bara göras en gång.');
     show('setup'); $('skip2').hidden = !j.optional;
     $('secret').textContent = j.secret.match(/.{1,4}/g).join(' ');
-    $('btn').textContent = 'Aktivera och logga in';
+    $('btn').textContent = tx('Aktivera och logga in');
     showQr(j.uri); $('code').focus();
   } else if(j.needCode){
-    $('title').textContent = 'Tvåstegsinloggning';
+    $('title').textContent = tx('Tvåstegsinloggning');
     $('intro').hidden = false;
-    $('intro').textContent = 'Ange koden som visas i din autentiseringsapp.';
-    show('code'); $('btn').textContent = 'Logga in';
+    $('intro').textContent = tx('Ange koden som visas i din autentiseringsapp.');
+    show('code'); $('btn').textContent = tx('Logga in');
     $('code').focus();
   }
 }
 async function send(extra = {}){
   const btns = [$('btn'), $('enrollBtn'), $('skipBtn'), $('skip2')];
-  btns.forEach(b => b.disabled = true); $('err').textContent = '';
+  btns.forEach(b => b.disabled = true); $('err').textContent = lastErr = '';
   try{
     const r = await fetch('/login', {method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
       body:JSON.stringify({user:$('user').value, pass:$('pass').value, code:$('code').value, setup:setupToken, ...extra})});
     const j = await r.json().catch(() => ({error:'Ogiltigt svar från servern.'}));
     if(j.ok){ location.replace('/'); return; }
     step(j);
-    if(j.error){ $('err').textContent = j.error; if(!$('codeBox').hidden){ $('code').value = ''; $('code').focus(); } else $('pass').select(); }
-  }catch{ $('err').textContent = 'Kunde inte nå servern.'; }
+    if(j.error){ $('err').textContent = tx(lastErr = j.error); if(!$('codeBox').hidden){ $('code').value = ''; $('code').focus(); } else $('pass').select(); }
+  }catch{ $('err').textContent = tx(lastErr = 'Kunde inte nå servern.'); }
   btns.forEach(b => b.disabled = false);
 }
 $('f').addEventListener('submit', e => { e.preventDefault(); send(); });
