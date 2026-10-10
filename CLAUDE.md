@@ -22,6 +22,11 @@
 - Lägg aldrig in personliga data (planritningar, IP-listor, lösenord) eller `.env` i repot. Inbäddade planer
   (`<script id="housePlans">`) tas bort med `server/strip_plans.py`.
 - Docker-filer måste ha LF (`.gitattributes` sköter det); `Start NetAtlas.bat` måste ha CRLF.
+- **Svenska och engelska:** all text i gränssnittet går genom `tx('…')` eller `` tx`…${x}…` `` (nyckeln är den svenska
+  texten, värden blir `{0}`, `{1}` …). Den engelska översättningen läggs i `<script id="i18n">` i `netatlas.html`
+  (`server/login.html` har en egen). Text från hjälpprogrammet/servern visas med `txs()` – nya meddelanden där läggs
+  in i ordlistan eller som mönster i `en_rx`. Användarens egna data översätts aldrig. Mobilkopian har en egen
+  ordlista (`en_mobile`). `python tests/test_i18n.py` hittar saknade översättningar och kvarglömd svenska.
 
 ## Test
 
