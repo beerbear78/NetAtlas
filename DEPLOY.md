@@ -1,36 +1,40 @@
-# NetAtlas på server (Unraid / Docker)
+# NetAtlas on a server (Unraid / Docker)
 
-Två containrar: **netatlas** (appen från `ghcr.io/beerbear78/netatlas`, HTTPS på port 8770) och **netatlas-db**
-(PostgreSQL 16, nås bara internt). All data hamnar i installationsmappen, t.ex. `/mnt/user/appdata/netatlas/`
-(`app/` och `postgres/`), och följer därmed med i Unraids Appdata Backup.
-Uppgifterna krypteras i webbläsaren med ditt huvudlösenord – servern ser aldrig dina lösenord.
+**English** | [Svenska](DEPLOY.sv.md)
 
-**Krav:** Docker med Compose v2 (`docker compose`), amd64 eller arm64. På Unraid: installera pluginet
-**Docker Compose Manager** från *Apps* (testat på Unraid 7.1 med Compose 2.40).
+Two containers: **netatlas** (the app from `ghcr.io/beerbear78/netatlas`, HTTPS on port 8770) and **netatlas-db**
+(PostgreSQL 16, internal only). All data is stored in the installation folder, e.g. `/mnt/user/appdata/netatlas/`
+(`app/` and `postgres/`), so it is included in Unraid's Appdata Backup.
+Your data is encrypted in the browser with your master password – the server never sees your passwords.
 
-## 1. Installera
+**Requirements:** Docker with Compose v2 (`docker compose`), amd64 or arm64. On Unraid: install the
+**Docker Compose Manager** plugin from *Apps* (tested on Unraid 7.1 with Compose 2.40).
 
-### Med installationsskriptet (enklast)
+## 1. Install
 
-Öppna en terminal på servern (Unraid: ikonen `>_` uppe till höger) och kör som root:
+### With the installer (easiest)
+
+Open a terminal on the server (Unraid: the `>_` icon in the top right corner) and run as root:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/beerbear78/NetAtlas/main/install.sh | bash
 ```
 
-Skriptet frågar efter installationsmapp, port, användarnamn, lösenord, ditt nät, host-nätverk och tvåstegsinloggning.
-Föreslagen mapp är `appdata/netatlas` på Unraid (det hittar både `/mnt/user/appdata` och `/mnt/user/docker/appdata`),
-annars `/opt/netatlas`. Det skapar `.env` med slumpade nycklar (bara läsbar för root), hämtar imagen, startar och
-väntar tills allt är friskt. Lösenordet visas aldrig och får inte innehålla tecknet `'`.
+The script asks for the installation folder, port, username, password, your network, host networking and two-factor
+authentication. The suggested folder is `appdata/netatlas` on Unraid (it finds both `/mnt/user/appdata` and
+`/mnt/user/docker/appdata`), otherwise `/opt/netatlas`. It creates `.env` with random keys (readable by root only),
+pulls the image, starts everything and waits until it is healthy. The password is never shown and must not contain
+the character `'`. The script talks English, or Swedish if the system language is Swedish (`NETATLAS_LANG=en|sv`
+overrides).
 
-Utan frågor, t.ex. för automatisering: sätt `NETATLAS_PASSWORD` och `NETATLAS_YES=1`. Övriga val styrs med
-`NETATLAS_DIR`, `NETATLAS_PORT`, `NETATLAS_USER`, `NETATLAS_CIDR`, `NETATLAS_HOSTNET` (ja/nej), `NETATLAS_2FA` och
-`NETATLAS_TAG` – se början av [install.sh](install.sh).
+Without questions, e.g. for automation: set `NETATLAS_PASSWORD` and `NETATLAS_YES=1`. Other options are
+`NETATLAS_DIR`, `NETATLAS_PORT`, `NETATLAS_USER`, `NETATLAS_CIDR`, `NETATLAS_HOSTNET` (yes/no), `NETATLAS_2FA` and
+`NETATLAS_TAG` – see the top of [install.sh](install.sh).
 
-### Manuellt
+### Manually
 
-Ta reda på var dina containrar har sin appdata (*Docker* → en container → *Edit*). Exemplen använder
-`/mnt/user/appdata` – byt till din sökväg.
+Find out where your containers keep their appdata (*Docker* → a container → *Edit*). The examples use
+`/mnt/user/appdata` – replace it with your path.
 
 ```bash
 mkdir -p /mnt/user/appdata/netatlas && cd /mnt/user/appdata/netatlas
@@ -38,75 +42,77 @@ for f in docker-compose.yml docker-compose.host.yml .env.example; do
   curl -fsSLO "https://raw.githubusercontent.com/beerbear78/NetAtlas/main/$f"
 done
 cp .env.example .env && chmod 600 .env
-openssl rand -hex 32   # kör två gånger: till APP_SECRET och POSTGRES_PASSWORD
+openssl rand -hex 32   # run twice: for APP_SECRET and POSTGRES_PASSWORD
 nano .env
 ```
 
-Fyll i `APP_PASSWORD` (lösenordet du loggar in med – välj ett eget starkt), `APP_SECRET` och `POSTGRES_PASSWORD`.
-Innehåller ett värde tecknet `$`, sätt det inom enkla citattecken: `APP_PASSWORD='...'`. Ändra också `TLS_HOSTS`
-(serverns IP och namn), `SCAN_CIDRS` (ditt nät) och `APPDATA` (installationsmappen). `LOGIN_2FA` styr
-tvåstegsinloggningen: `optional` (standard – erbjuds vid första inloggningen och kan aktiveras senare), `required`
-(krav) eller `off`. `NETATLAS_TAG` väljer version (`latest`, eller lås till t.ex. `1.0.0`).
-`.env` innehåller hemligheter: spara en kopia på ett säkert ställe och checka aldrig in den.
+Fill in `APP_PASSWORD` (the password you sign in with – choose your own strong one), `APP_SECRET` and
+`POSTGRES_PASSWORD`. If a value contains the character `$`, put it in single quotes: `APP_PASSWORD='...'`. Also
+change `TLS_HOSTS` (the server's IP and name), `SCAN_CIDRS` (your network) and `APPDATA` (the installation folder).
+`LOGIN_2FA` controls two-factor sign-in: `optional` (default – offered at the first sign-in and can be turned on
+later), `required` or `off`. `NETATLAS_TAG` selects the version (`latest`, or pin e.g. `1.0.0`).
+`.env` contains secrets: keep a copy in a safe place and never commit it.
 
 ```bash
 docker compose pull
 docker compose up -d
-docker compose ps                      # båda ska visa (healthy) efter en halv minut
+docker compose ps                      # both should show (healthy) after half a minute
 curl -k https://127.0.0.1:8770/health  # {"status": "ok", "db": "ok"}
 ```
 
-## 2. Första inloggningen
+## 2. First sign-in
 
-Öppna **https://SERVERNS-IP:8770** (eller WebUI i Unraids Docker-flik). Första gången varnar webbläsaren för
-certifikatet eftersom det är självsignerat – välj *Avancerat → Fortsätt*. Logga in med `APP_USER`/`APP_PASSWORD`.
-Första gången erbjuds tvåstegsinloggning – den rekommenderas, men du kan hoppa över och aktivera den senare under
-*Inställningar → Säkerhet*. Skapa sedan ett huvudlösenord, eller flytta dina data enligt steg 3.
+Open **https://SERVER-IP:8770** (or WebUI in Unraid's Docker tab). The first time, the browser warns about the
+certificate because it is self-signed – choose *Advanced → Proceed*. Sign in with `APP_USER`/`APP_PASSWORD`.
+Two-factor authentication is offered at the first sign-in – it is recommended, but you can skip it and turn it on
+later under *Settings → Security*. Then create a master password, or move your data as described in step 3.
+Switch language with the globe (🌐) on the sign-in page or in the top bar.
 
-*Bli av med varningen:* hämta `https://SERVERNS-IP:8770/netatlas.crt`, dubbelklicka och installera det under
-*Lokal dator → Betrodda rotcertifikatutfärdare*. Byter servern IP eller namn: ta bort `app/certs/*.pem` och starta om.
+*Get rid of the warning:* download `https://SERVER-IP:8770/netatlas.crt`, double-click it and install it under
+*Local Machine → Trusted Root Certification Authorities*. If the server's IP or name changes: delete
+`app/certs/*.pem` and restart.
 
-Kontrollera att data finns kvar efter omstart:
+Check that your data survives a restart:
 
 ```bash
 docker compose down && docker compose up -d
 ```
 
-## 3. Flytta data från Windows-versionen (en gång)
+## 3. Move data from the Windows version (once)
 
-1. I Windows-NetAtlas: stäng av tvåstegsinloggning om den är på, och välj *Inställningar → Säkerhetskopiera nu*.
-2. Kopiera den nya filen `backups\netatlas-ÅÅÅÅMMDD-HHMMSS.json`, och mappen `data\files` om du har bilagor, till
-   `/mnt/user/appdata/netatlas/app/import/` (bilagorna i `import/files/`).
-3. Kör:
+1. In NetAtlas on Windows: turn off two-factor authentication if it is on, and choose *Settings → Back up now*.
+2. Copy the new file `backups\netatlas-YYYYMMDD-HHMMSS.json`, and the folder `data\files` if you have attachments,
+   to `/mnt/user/appdata/netatlas/app/import/` (attachments in `import/files/`).
+3. Run:
 
 ```bash
-docker compose exec app python -m server.migrate --hint "din ledtråd"
+docker compose exec app python -m server.migrate --hint "your hint"
 ```
 
-4. Logga in och lås upp med ditt vanliga huvudlösenord. Ta sedan bort `app/import/`.
+4. Sign in and unlock with your usual master password. Then delete `app/import/`.
 
-## 4. Full nätverksskanning (tillval)
+## 4. Full network scanning (optional)
 
-I vanligt Docker-nät fungerar ping, portar, Shelly, Home Assistant och SSH-import, men inte MAC-adresser,
-Wake-on-LAN och delning till mobilen. Kör appen i värdens nätverk för att få dem (installationsskriptet frågar om
-detta och gör det åt dig). Manuellt: lägg till raden nedan i `.env` och kör `docker compose up -d`.
+On a normal Docker network, ping, ports, Shelly, Home Assistant and SSH import work, but not MAC addresses,
+Wake-on-LAN or sharing to a phone. Run the app on the host network to get them (the installer asks about this and
+sets it up for you). Manually: add the line below to `.env` and run `docker compose up -d`.
 
 ```bash
 COMPOSE_FILE=docker-compose.yml:docker-compose.host.yml
 ```
 
-Databasen öppnas då på `127.0.0.1:5433` (bara lokalt; ändra med `DB_HOST_PORT`).
+The database is then exposed on `127.0.0.1:5433` (local only; change with `DB_HOST_PORT`).
 
-## 5. SSH-import av rutiner
+## 5. SSH import of routines
 
-Containern skapar en egen SSH-nyckel första gången. Visa den publika delen och lägg in den hos servrarna du vill
-importera från (Unraid: *Users → root → SSH authorized keys*):
+The container creates its own SSH key on first start. Show the public key and add it on the servers you want to
+import from (Unraid: *Users → root → SSH authorized keys*):
 
 ```bash
-docker compose logs app | grep -A1 "SSH-nyckel"
+docker compose logs app | grep -A1 "SSH"
 ```
 
-## 6. Uppdatera till ny version
+## 6. Update to a new version
 
 ```bash
 cd /mnt/user/appdata/netatlas
@@ -114,35 +120,35 @@ docker compose pull
 docker compose up -d
 ```
 
-Eller kör installationsskriptet igen i samma mapp – det hämtar också de senaste compose-filerna. `.env`, databasen
-och `app/` rörs inte. Versioner och ändringar: [Releases](https://github.com/beerbear78/NetAtlas/releases).
-Med `NETATLAS_TAG=1.0.0` i `.env` står du kvar på en viss version tills du ändrar den; `main` ger den senaste
-utvecklingsversionen.
+Or run the installer again in the same folder – it also fetches the latest compose files. `.env`, the database and
+`app/` are left untouched. Versions and changes: [Releases](https://github.com/beerbear78/NetAtlas/releases).
+With `NETATLAS_TAG=1.0.0` in `.env` you stay on a specific version until you change it; `main` gives the latest
+development version.
 
-**Bygga från källkoden** (t.ex. för att prova en pull request innan den mergas): klona repot, lägg din `.env` i
-mappen och lägg till `docker-compose.build.yml` i `COMPOSE_FILE`, så byggs imagen lokalt i stället för att hämtas:
+**Build from source** (e.g. to try a pull request before it is merged): clone the repository, put your `.env` in
+the folder and add `docker-compose.build.yml` to `COMPOSE_FILE`, so the image is built locally instead of pulled:
 
 ```bash
 git clone https://github.com/beerbear78/NetAtlas.git /mnt/user/appdata/netatlas/src
 cd /mnt/user/appdata/netatlas/src
-# i .env: COMPOSE_FILE=docker-compose.yml:docker-compose.build.yml   (+ :docker-compose.host.yml i host-läget)
-git checkout grenens-namn && docker compose up -d --build
+# in .env: COMPOSE_FILE=docker-compose.yml:docker-compose.build.yml   (+ :docker-compose.host.yml for host mode)
+git checkout branch-name && docker compose up -d --build
 ```
 
-Tillbaka: `git checkout main`, ta bort `docker-compose.build.yml` ur `COMPOSE_FILE` och kör `docker compose up -d`.
+To go back: `git checkout main`, remove `docker-compose.build.yml` from `COMPOSE_FILE` and run `docker compose up -d`.
 
-**Röktest** (valfritt, t.ex. efter en uppdatering): kör testet i en separat kopia – det använder egna namn och
-portar (8790/5433), rör inte din installation och städar efter sig:
+**Smoke test** (optional, e.g. after an update): run the test from a separate copy – it uses its own names and
+ports (8790/5433), does not touch your installation and cleans up after itself:
 
 ```bash
 git clone https://github.com/beerbear78/NetAtlas.git /tmp/netatlas-smoke-src
-bash /tmp/netatlas-smoke-src/tests/docker_smoke.sh 192.168.1.0/24 192.168.1.1   # ditt nät och din router
+bash /tmp/netatlas-smoke-src/tests/docker_smoke.sh 192.168.1.0/24 192.168.1.1   # your network and your router
 rm -rf /tmp/netatlas-smoke-src
 ```
 
-## 7. Backup och återställning
+## 7. Backup and restore
 
-**Backup av databasen** (valv, bilagor, tvåstegsnycklar):
+**Database backup** (vault, attachments, two-factor keys):
 
 ```bash
 mkdir -p /mnt/user/backups/netatlas
@@ -150,7 +156,7 @@ docker compose exec -T db pg_dump -U netatlas -d netatlas --clean --if-exists \
   > /mnt/user/backups/netatlas/netatlas-$(date +%F).sql
 ```
 
-**Återställning:**
+**Restore:**
 
 ```bash
 docker compose stop app
@@ -158,31 +164,33 @@ docker compose exec -T db psql -q -U netatlas -d netatlas < /mnt/user/backups/ne
 docker compose start app
 ```
 
-Valvet i dumpen är krypterat med ditt huvudlösenord. Tvåstegsnycklarna är krypterade med `APP_SECRET` – spara
-därför `.env` tillsammans med backuperna (men på ett säkert ställe). Appens egna säkerhetskopior hamnar dessutom i
-`app/backups/`, och molnbackup (S3/WebDAV) under *Inställningar* fungerar som tidigare.
+The vault in the dump is encrypted with your master password. The two-factor keys are encrypted with `APP_SECRET` –
+so keep `.env` together with the backups (but in a safe place). The app's own backups are also stored in
+`app/backups/`, and cloud backup (S3/WebDAV) under *Settings* works as before.
 
 ## 8. Administration
 
 ```bash
-docker compose exec app python -m server.cli status      # storlek, version, senast sparat
-docker compose exec app python -m server.cli reset-2fa   # tappad telefon: logga in utan kod och aktivera igen
-docker compose logs -f app                               # loggar
+docker compose exec app python -m server.cli status      # size, version, last saved
+docker compose exec app python -m server.cli reset-2fa   # lost phone: sign in without a code and set it up again
+docker compose logs -f app                               # logs
 ```
 
-Logga ut: `https://SERVERNS-IP:8770/logout`.
+Sign out: `https://SERVER-IP:8770/logout`.
 
-## Felsökning
+## Troubleshooting
 
-| Problem | Lösning |
+| Problem | Solution |
 |---|---|
-| "Webbläsaren saknar Web Crypto" | Du använder `http://`. Gå till `https://`. |
-| Containern startar om hela tiden | `docker compose logs app` – t.ex. saknas `APP_PASSWORD` eller `APP_SECRET`. |
-| Behörighetsfel i appdata | Kontrollera `PUID`/`PGID` i `.env` (Unraid: 99/100). |
-| Port 8770 upptagen | Ändra `PORT` i `.env`. |
-| Databasen långsam | Lägg `APPDATA` direkt på cache-poolen, t.ex. `/mnt/cache/appdata/netatlas`. |
-| "Kunde inte hämta imagen" / `manifest unknown` | Kontrollera internet och `NETATLAS_TAG` i `.env` (finns versionen under *Releases*?). |
-| Unraid: `docker compose` saknas | Installera pluginet *Docker Compose Manager* från *Apps*. |
+| "This browser lacks Web Crypto" | You are using `http://`. Go to `https://`. |
+| The container keeps restarting | `docker compose logs app` – e.g. `APP_PASSWORD` or `APP_SECRET` is missing. |
+| Permission errors in appdata | Check `PUID`/`PGID` in `.env` (Unraid: 99/100). |
+| Port 8770 is in use | Change `PORT` in `.env`. |
+| The database is slow | Put `APPDATA` directly on the cache pool, e.g. `/mnt/cache/appdata/netatlas`. |
+| "Could not pull the image" / `manifest unknown` | Check the internet connection and `NETATLAS_TAG` in `.env` (does the version exist under *Releases*?). |
+| Unraid: `docker compose` is missing | Install the *Docker Compose Manager* plugin from *Apps*. |
 
-**Vanlig Linux-server i stället för Unraid:** installationsskriptet fungerar likadant (föreslår `/opt/netatlas`).
-Vill du att filerna ska ägas av din egen användare: sätt `PUID`/`PGID` i `.env` (`id -u`, `id -g`).
+**A regular Linux server instead of Unraid:** the installer works the same way (it suggests `/opt/netatlas`).
+If you want the files to be owned by your own user: set `PUID`/`PGID` in `.env` (`id -u`, `id -g`).
+
+Server logs and admin command output are in Swedish.

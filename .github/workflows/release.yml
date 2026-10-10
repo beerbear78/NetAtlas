@@ -1,4 +1,5 @@
 # Skapar en release på GitHub när en versionstagg (vX.Y.Z) pushas, med Windows-versionen som zip.
+# Release-texten är på engelska (en fast inledning + automatiskt genererad lista över pull requests).
 name: Release
 
 on:
@@ -19,24 +20,53 @@ jobs:
         run: |
           mkdir -p dist/NetAtlas
           cp netatlas.html netatlas-helper.py "Start NetAtlas.bat" LICENSE dist/NetAtlas/
-          cat > dist/NetAtlas/Instruktioner.txt <<'EOF'
-          NetAtlas för Windows
+          cat > dist/NetAtlas/README.txt <<'EOF'
+          NetAtlas for Windows
           ====================
-          1. Kräver Python 3 (https://www.python.org/downloads/ – kryssa i "Add python.exe to PATH").
+          1. Requires Python 3 (https://www.python.org/downloads/ - tick "Add python.exe to PATH").
+          2. Unzip the folder somewhere with a short path, e.g. directly in Downloads.
+          3. Double-click "Start NetAtlas.bat". NetAtlas opens at http://127.0.0.1:8770
+             Keep the black window open while you use NetAtlas.
+
+          All data is encrypted with your master password and stored in the browser.
+          Switch between English and Swedish with the globe icon at the top.
+          Server/Docker version and more information: https://github.com/beerbear78/NetAtlas
+
+
+          NetAtlas för Windows (svenska)
+          ==============================
+          1. Kräver Python 3 (https://www.python.org/downloads/ - kryssa i "Add python.exe to PATH").
           2. Packa upp mappen på ett ställe med kort sökväg, t.ex. direkt i Hämtade filer.
           3. Dubbelklicka på "Start NetAtlas.bat". NetAtlas öppnas på http://127.0.0.1:8770
              Låt det svarta fönstret vara öppet medan du använder NetAtlas.
 
           All data krypteras med ditt huvudlösenord och sparas i webbläsaren.
+          Byt mellan svenska och engelska med jordgloben högst upp.
           Server-/Docker-versionen och mer information: https://github.com/beerbear78/NetAtlas
           EOF
-          sed -i 's/^          //' dist/NetAtlas/Instruktioner.txt
-          sed -i 's/$/\r/' dist/NetAtlas/Instruktioner.txt
+          sed -i 's/^          //' dist/NetAtlas/README.txt
+          sed -i 's/$/\r/' dist/NetAtlas/README.txt
           cd dist && zip -qr "NetAtlas-windows-${GITHUB_REF_NAME}.zip" NetAtlas
           unzip -l "NetAtlas-windows-${GITHUB_REF_NAME}.zip"
       - name: Skapa release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          V="${GITHUB_REF_NAME#v}"
+          cat > notes.md <<EOF
+          NetAtlas – IT inventory on your floor plan, with accounts and passwords encrypted in the browser.
+
+          **Windows:** download \`NetAtlas-windows-${GITHUB_REF_NAME}.zip\` below, unzip it and double-click \`Start NetAtlas.bat\` (requires Python 3).
+
+          **Server (Docker / Unraid):** install with
+          \`\`\`bash
+          curl -fsSL https://raw.githubusercontent.com/beerbear78/NetAtlas/main/install.sh | bash
+          \`\`\`
+          or update an existing installation with \`docker compose pull && docker compose up -d\`. Image: \`ghcr.io/beerbear78/netatlas:${V}\` (also \`latest\`).
+
+          More information: [README](https://github.com/beerbear78/NetAtlas#readme) · [Server guide](https://github.com/beerbear78/NetAtlas/blob/main/DEPLOY.md)
+
+          EOF
+          sed -i 's/^          //' notes.md
           gh release create "$GITHUB_REF_NAME" "dist/NetAtlas-windows-${GITHUB_REF_NAME}.zip" \
-            --title "NetAtlas ${GITHUB_REF_NAME}" --generate-notes --verify-tag
+            --title "NetAtlas ${GITHUB_REF_NAME}" --notes-file notes.md --generate-notes --verify-tag

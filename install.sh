@@ -5,19 +5,23 @@
 #
 # Frågar efter användarnamn, lösenord, port och nät, slumpar fram övriga nycklar och startar NetAtlas
 # (appen + PostgreSQL) med den färdiga imagen från ghcr.io. Körs skriptet igen i samma mapp uppdateras
-# installationen (befintlig .env behålls).
+# installationen (befintlig .env behålls). Texterna är på engelska, eller svenska om systemet är svenskt
+# (LANG=sv_…); NETATLAS_LANG=en|sv väljer språk.
 #
 # Utan frågor (t.ex. för automatisering): sätt NETATLAS_PASSWORD och NETATLAS_YES=1. Övriga val:
-#   NETATLAS_DIR, NETATLAS_PORT, NETATLAS_USER, NETATLAS_CIDR, NETATLAS_HOSTNET (ja/nej), NETATLAS_2FA, NETATLAS_TAG
+#   NETATLAS_DIR, NETATLAS_PORT, NETATLAS_USER, NETATLAS_CIDR, NETATLAS_HOSTNET (ja/nej, yes/no), NETATLAS_2FA,
+#   NETATLAS_TAG
 set -euo pipefail
 
 RAW="${NETATLAS_RAW:-https://raw.githubusercontent.com/beerbear78/NetAtlas/main}"
 SRC="${NETATLAS_SRC:-}"          # lokal mapp med compose-filerna i stället för att ladda ner (används av testerna)
 TAG="${NETATLAS_TAG:-latest}"
 PULL="${NETATLAS_PULL:-1}"
+case "${NETATLAS_LANG:-${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}}" in sv*) SV=1 ;; *) SV= ;; esac
 
+L() { if [ -n "$SV" ]; then printf '%s' "$1"; else printf '%s' "$2"; fi; }   # L "svenska" "English"
 say() { printf '%s\n' "$*"; }
-die() { printf '\nFEL: %s\n' "$*" >&2; exit 1; }
+die() { printf '\n%s: %s\n' "$(L FEL ERROR)" "$*" >&2; exit 1; }
 tty_ok() { [ -z "${NETATLAS_YES:-}" ] && { : < /dev/tty; } 2>/dev/null; }
 ask() {  # ask VARIABEL "fråga" "standardvärde"
   local var=$1 q=$2 def=${3:-} ans=''
@@ -29,11 +33,11 @@ rand() { if command -v openssl >/dev/null 2>&1; then openssl rand -hex "$1"; els
 
 # allt körs i main(), som anropas sist – då har bash läst hela skriptet innan något körs (säkert med curl | bash)
 main() {
-say "== NetAtlas – installation"
-command -v docker >/dev/null 2>&1 || die "Docker saknas. Installera Docker först (https://docs.docker.com/engine/install/)."
+say "== NetAtlas – $(L installation installer)"
+command -v docker >/dev/null 2>&1 || die "$(L 'Docker saknas. Installera Docker först' 'Docker is missing. Install Docker first') (https://docs.docker.com/engine/install/)."
 if ! docker compose version >/dev/null 2>&1; then
-  if [ -f /etc/unraid-version ]; then die "Docker Compose saknas. Installera pluginet \"Docker Compose Manager\" under Apps i Unraid och kör skriptet igen."; fi
-  die "Docker Compose saknas. Installera tillägget docker-compose-plugin (https://docs.docker.com/compose/install/)."
+  if [ -f /etc/unraid-version ]; then die "$(L 'Docker Compose saknas. Installera pluginet "Docker Compose Manager" under Apps i Unraid och kör skriptet igen.' 'Docker Compose is missing. Install the "Docker Compose Manager" plugin under Apps in Unraid and run the script again.')"; fi
+  die "$(L 'Docker Compose saknas. Installera tillägget docker-compose-plugin' 'Docker Compose is missing. Install the docker-compose-plugin package') (https://docs.docker.com/compose/install/)."
 fi
 
 # ---- standardval ----
@@ -52,41 +56,41 @@ if [ -n "$ADDR" ]; then
 fi
 HOST=$(hostname 2>/dev/null | tr 'A-Z' 'a-z' || true)
 
-ask NETATLAS_DIR "Installationsmapp (här hamnar även databasen)" "$DEF_DIR"
+ask NETATLAS_DIR "$(L 'Installationsmapp (här hamnar även databasen)' 'Installation folder (the database is stored here too)')" "$DEF_DIR"
 DIR=$NETATLAS_DIR
 mkdir -p "$DIR"
 cd "$DIR"
 
 # ---- hämta compose-filerna ----
 for f in docker-compose.yml docker-compose.host.yml .env.example; do
-  if [ -n "$SRC" ]; then cp "$SRC/$f" "$f"; else curl -fsSL "$RAW/$f" -o "$f" || die "Kunde inte hämta $f från $RAW"; fi
+  if [ -n "$SRC" ]; then cp "$SRC/$f" "$f"; else curl -fsSL "$RAW/$f" -o "$f" || die "$(L "Kunde inte hämta $f från $RAW" "Could not download $f from $RAW")"; fi
 done
 
 if [ -f .env ]; then
-  say "Befintlig .env hittades i $DIR – den behålls (uppdatering)."
+  say "$(L "Befintlig .env hittades i $DIR – den behålls (uppdatering)." "Existing .env found in $DIR – it is kept (update).")"
 else
-  ask NETATLAS_PORT "Port för webbgränssnittet (HTTPS)" "8770"
-  ask NETATLAS_USER "Användarnamn för inloggningen" "admin"
+  ask NETATLAS_PORT "$(L 'Port för webbgränssnittet (HTTPS)' 'Port for the web interface (HTTPS)')" "8770"
+  ask NETATLAS_USER "$(L 'Användarnamn för inloggningen' 'Username for signing in')" "admin"
   if [ -z "${NETATLAS_PASSWORD:-}" ]; then
-    tty_ok || die "Ange lösenordet med NETATLAS_PASSWORD när skriptet körs utan frågor."
+    tty_ok || die "$(L 'Ange lösenordet med NETATLAS_PASSWORD när skriptet körs utan frågor.' 'Set the password with NETATLAS_PASSWORD when running without questions.')"
     while :; do
-      read -r -s -p "Lösenord för inloggningen (minst 8 tecken): " p1 < /dev/tty; echo
-      read -r -s -p "Upprepa lösenordet: " p2 < /dev/tty; echo
-      if [ "$p1" != "$p2" ]; then say "Lösenorden matchar inte – försök igen."; continue; fi
-      if [ ${#p1} -lt 8 ]; then say "För kort – minst 8 tecken."; continue; fi
-      case "$p1" in *"'"*) say "Lösenordet får inte innehålla tecknet ' – välj ett annat."; continue ;; esac
+      read -r -s -p "$(L 'Lösenord för inloggningen (minst 8 tecken): ' 'Password for signing in (at least 8 characters): ')" p1 < /dev/tty; echo
+      read -r -s -p "$(L 'Upprepa lösenordet: ' 'Repeat the password: ')" p2 < /dev/tty; echo
+      if [ "$p1" != "$p2" ]; then say "$(L 'Lösenorden matchar inte – försök igen.' 'The passwords do not match – try again.')"; continue; fi
+      if [ ${#p1} -lt 8 ]; then say "$(L 'För kort – minst 8 tecken.' 'Too short – at least 8 characters.')"; continue; fi
+      case "$p1" in *"'"*) say "$(L "Lösenordet får inte innehålla tecknet ' – välj ett annat." "The password must not contain the character ' – choose another one.")"; continue ;; esac
       NETATLAS_PASSWORD=$p1; break
     done
   fi
-  [ ${#NETATLAS_PASSWORD} -ge 8 ] || die "Lösenordet måste ha minst 8 tecken."
-  case "$NETATLAS_PASSWORD" in *"'"*) die "Lösenordet får inte innehålla tecknet '." ;; esac
-  ask NETATLAS_CIDR "Ditt nät (för skanning)" "${DEF_CIDR:-192.168.1.0/24}"
-  ask NETATLAS_HOSTNET "Full skanning med MAC-adresser och Wake-on-LAN (host-nätverk)? ja/nej" "ja"
-  ask NETATLAS_2FA "Tvåstegsinloggning: optional (rekommenderas), required eller off" "optional"
+  [ ${#NETATLAS_PASSWORD} -ge 8 ] || die "$(L 'Lösenordet måste ha minst 8 tecken.' 'The password must have at least 8 characters.')"
+  case "$NETATLAS_PASSWORD" in *"'"*) die "$(L "Lösenordet får inte innehålla tecknet '." "The password must not contain the character '.")" ;; esac
+  ask NETATLAS_CIDR "$(L 'Ditt nät (för skanning)' 'Your network (for scanning)')" "${DEF_CIDR:-192.168.1.0/24}"
+  ask NETATLAS_HOSTNET "$(L 'Full skanning med MAC-adresser och Wake-on-LAN (host-nätverk)? ja/nej' 'Full scanning with MAC addresses and Wake-on-LAN (host network)? yes/no')" "$(L ja yes)"
+  ask NETATLAS_2FA "$(L 'Tvåstegsinloggning: optional (rekommenderas), required eller off' 'Two-factor sign-in: optional (recommended), required or off')" "optional"
   HOSTS="$IP"
   [ -n "$HOST" ] && HOSTS="${HOSTS:+$HOSTS,}$HOST,$HOST.local"
   {
-    echo "# NetAtlas – skapad av install.sh $(date '+%Y-%m-%d %H:%M'). Se .env.example för alla val."
+    echo "# NetAtlas – $(L 'skapad av install.sh' 'created by install.sh') $(date '+%Y-%m-%d %H:%M'). $(L 'Se .env.example för alla val.' 'See .env.example for all options.')"
     echo "APP_USER=$NETATLAS_USER"
     echo "APP_PASSWORD='$NETATLAS_PASSWORD'"
     echo "APP_SECRET=$(rand 32)"
@@ -110,27 +114,36 @@ else
   } > .env
   chmod 600 .env
   unset NETATLAS_PASSWORD p1 p2 2>/dev/null || true
-  say ".env skapad i $DIR (lösenord och nycklar ligger där – spara en kopia på ett säkert ställe)."
+  say "$(L ".env skapad i $DIR (lösenord och nycklar ligger där – spara en kopia på ett säkert ställe)." ".env created in $DIR (passwords and keys are stored there – keep a copy in a safe place).")"
 fi
 
 # ---- starta ----
-docker compose config --quiet || die "Ogiltig konfiguration i $DIR/.env"
-if [ "$PULL" = 1 ]; then docker compose pull --quiet || die "Kunde inte hämta imagen. Är du ansluten till internet?"; fi
+docker compose config --quiet || die "$(L "Ogiltig konfiguration i $DIR/.env" "Invalid configuration in $DIR/.env")"
+if [ "$PULL" = 1 ]; then docker compose pull --quiet || die "$(L 'Kunde inte hämta imagen. Är du ansluten till internet?' 'Could not pull the image. Are you connected to the internet?')"; fi
 docker compose up -d
-say "Väntar på att NetAtlas ska starta …"
+say "$(L 'Väntar på att NetAtlas ska starta …' 'Waiting for NetAtlas to start …')"
 for _ in $(seq 1 90); do
   [ "$(docker inspect -f '{{.State.Health.Status}}' netatlas 2>/dev/null)" = healthy ] && break
   sleep 2
 done
-[ "$(docker inspect -f '{{.State.Health.Status}}' netatlas 2>/dev/null)" = healthy ] || die "NetAtlas startade inte. Se loggen: cd $DIR && docker compose logs app"
+[ "$(docker inspect -f '{{.State.Health.Status}}' netatlas 2>/dev/null)" = healthy ] || die "$(L 'NetAtlas startade inte. Se loggen:' 'NetAtlas did not start. See the log:') cd $DIR && docker compose logs app"
 PORT_NOW=$(grep -E '^PORT=' .env | cut -d= -f2)
+URL="https://${IP:-$(L SERVERNS-IP SERVER-IP)}:${PORT_NOW:-8770}"
 
 say ""
-say "== Klart! NetAtlas körs."
-say "   Öppna  https://${IP:-SERVERNS-IP}:${PORT_NOW:-8770}  och logga in med användarnamnet och lösenordet du valde."
-say "   Första gången varnar webbläsaren för certifikatet (självsignerat) – välj Avancerat → Fortsätt."
-say "   Sedan skapar du ett huvudlösenord som krypterar all data i webbläsaren."
-say "   Uppdatera senare:  cd $DIR && docker compose pull && docker compose up -d"
+if [ -n "$SV" ]; then
+  say "== Klart! NetAtlas körs."
+  say "   Öppna  $URL  och logga in med användarnamnet och lösenordet du valde."
+  say "   Första gången varnar webbläsaren för certifikatet (självsignerat) – välj Avancerat → Fortsätt."
+  say "   Sedan skapar du ett huvudlösenord som krypterar all data i webbläsaren."
+  say "   Uppdatera senare:  cd $DIR && docker compose pull && docker compose up -d"
+else
+  say "== Done! NetAtlas is running."
+  say "   Open  $URL  and sign in with the username and password you chose."
+  say "   The first time, the browser warns about the certificate (self-signed) – choose Advanced → Proceed."
+  say "   Then you create a master password that encrypts all data in the browser."
+  say "   Update later:  cd $DIR && docker compose pull && docker compose up -d"
+fi
 }
 
 main "$@"

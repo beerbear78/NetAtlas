@@ -1,66 +1,70 @@
 # NetAtlas
 
-[![Tester](https://github.com/beerbear78/NetAtlas/actions/workflows/tester.yml/badge.svg)](https://github.com/beerbear78/NetAtlas/actions/workflows/tester.yml)
+**English** | [Svenska](README.sv.md)
 
-IT-inventarie på planritningen: brandväggar, switchar, servrar, kameror och IoT-enheter (t.ex. Shelly) placerade på
-husets planlösning – med konton och lösenord som krypteras i webbläsaren.
+[![Tests](https://github.com/beerbear78/NetAtlas/actions/workflows/tester.yml/badge.svg)](https://github.com/beerbear78/NetAtlas/actions/workflows/tester.yml)
 
-## Funktioner
+IT inventory on your floor plan: firewalls, switches, servers, cameras and IoT devices (e.g. Shelly) placed on the
+plan of your home or office – with accounts and passwords that are encrypted in the browser.
 
-- **Karta** – planritningar från bild eller PDF, rum, enheter och kamerors synfält
-- **Enheter** – sorterbar tabell, översikt med status och "att göra" (svaga lösenord, garantier, certifikat …)
-- **Konton och lösenord** – maskerade, med TOTP-koder och bilagor; allt krypterat med huvudlösenordet
-- **Nätverk** – skanning (ping, ARP, portar, tillverkare), Live-status, IP-plan, Shelly Gen1–Gen4
-- **Rutiner och jobb** – import från Home Assistant, Unraid och Linux (cron/systemd via SSH)
-- **Avtal och licenser**, säkerhetskopior (lokalt, synkmapp, S3/WebDAV), mobilkopia, utskrift och tvåstegsinloggning
-- **Svenska och engelska** – byt med jordgloben (🌐) i toppfältet, på inloggningsrutan eller under Inställningar
+## Features
 
-## Kom igång
+- **Map** – floor plans from an image or PDF, rooms, devices and camera fields of view
+- **Devices** – sortable table, overview with status and a to-do list (weak passwords, warranties, certificates …)
+- **Accounts and passwords** – masked, with TOTP codes and attachments; everything encrypted with the master password
+- **Network** – scanning (ping, ARP, ports, manufacturer), Live status, IP plan, Shelly Gen1–Gen4
+- **Routines and jobs** – import from Home Assistant, Unraid and Linux (cron/systemd over SSH)
+- **Contracts and licenses**, backups (local, sync folder, S3/WebDAV), mobile copy, printing and two-factor authentication
+- **English and Swedish** – switch with the globe (🌐) in the top bar, on the sign-in screen or under Settings
 
-**Windows (lokalt):** kräver [Python 3](https://www.python.org/downloads/). Hämta `NetAtlas-windows-….zip` under
-[Releases](https://github.com/beerbear78/NetAtlas/releases/latest), packa upp och dubbelklicka på `Start NetAtlas.bat` –
-appen öppnas på http://127.0.0.1:8770 och datan sparas krypterad i webbläsaren.
+## Getting started
 
-**Server (Docker, t.ex. Unraid):** kör som root i serverns terminal – skriptet frågar efter port, lösenord och nät,
-skapar `.env` med slumpade hemligheter och startar allt:
+**Windows (local):** requires [Python 3](https://www.python.org/downloads/). Download `NetAtlas-windows-….zip` from
+[Releases](https://github.com/beerbear78/NetAtlas/releases/latest), unzip it and double-click `Start NetAtlas.bat` –
+the app opens at http://127.0.0.1:8770 and your data is stored encrypted in the browser.
+
+**Server (Docker, e.g. Unraid):** run this as root in the server's terminal – the script asks for port, password and
+network, creates `.env` with random secrets and starts everything:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/beerbear78/NetAtlas/main/install.sh | bash
 ```
 
-Två containrar (appen från `ghcr.io/beerbear78/netatlas` och PostgreSQL 16), HTTPS och inloggning med valfri
-tvåstegskod. Manuell installation, uppdatering och backup: se [DEPLOY.md](DEPLOY.md).
+Two containers (the app from `ghcr.io/beerbear78/netatlas` and PostgreSQL 16), HTTPS and sign-in with optional
+two-factor authentication. Manual installation, updates and backups: see [DEPLOY.md](DEPLOY.md).
 
-## Säkerhet
+## Security
 
-- Allt känsligt krypteras i webbläsaren (AES-GCM, nyckel från huvudlösenordet via PBKDF2) innan det sparas –
-  varken hjälpprogrammet, servern eller databasen ser klartext.
-- Lokalt lyssnar hjälpprogrammet bara på 127.0.0.1. På servern krävs inloggning och HTTPS.
-- Repot innehåller inga lösenord, planritningar eller annan personlig data. `.env` checkas aldrig in.
+- Everything sensitive is encrypted in the browser (AES-GCM, key derived from the master password with PBKDF2)
+  before it is saved – neither the helper, the server nor the database ever sees plain text.
+- Locally the helper only listens on 127.0.0.1. On the server, sign-in and HTTPS are required.
+- The repository contains no passwords, floor plans or other personal data. `.env` is never committed.
 
-## Struktur
+## Structure
 
-| Fil/mapp | Innehåll |
+| File/folder | Contents |
 |---|---|
-| `netatlas.html` | hela appen – HTML, CSS och JavaScript i en fil |
-| `netatlas-helper.py` | webbserver och API för skanning m.m. (bara Pythons standardbibliotek) |
-| `Start NetAtlas.bat` | start i Windows |
-| `server/` | serverläget: inloggning, PostgreSQL-lagring, gunicorn |
-| `Dockerfile`, `docker-compose*.yml`, `.env.example` | Docker (`docker-compose.build.yml` bygger från källkoden) |
-| `install.sh` | installationsskript för servern |
-| `tests/` | tester för serverläget (körs utan Docker) |
-| `.github/workflows/` | tester, publicering av imagen och releaser |
+| `netatlas.html` | the whole app – HTML, CSS and JavaScript in one file |
+| `netatlas-helper.py` | web server and API for scanning etc. (Python standard library only) |
+| `Start NetAtlas.bat` | start script for Windows |
+| `server/` | server mode: sign-in, PostgreSQL storage, gunicorn |
+| `Dockerfile`, `docker-compose*.yml`, `.env.example` | Docker (`docker-compose.build.yml` builds from source) |
+| `install.sh` | installer for the server |
+| `tests/` | tests for server mode and translations (run without Docker) |
+| `.github/workflows/` | tests, image publishing and releases |
 
-## Utveckling
+## Development
 
 ```bash
-python tests/test_server_api.py     # inloggning, valv, bilagor, säkerhetskopior
-python tests/test_server_misc.py    # migrering, administration, compose-filer
-python tests/test_i18n.py           # svenska/engelska: saknade översättningar och kvarglömd svenska
-python tests/server_harness.py      # prova serverläget i webbläsaren: http://localhost:8783
-bash tests/docker_smoke.sh 192.168.1.0/24 192.168.1.1   # på en Docker-värd: hela Docker-versionen, städar själv
+python tests/test_server_api.py     # sign-in, vault, attachments, backups
+python tests/test_server_misc.py    # migration, admin commands, compose files
+python tests/test_i18n.py           # Swedish/English: missing translations and leftover Swedish
+python tests/server_harness.py      # try server mode in the browser: http://localhost:8783
+bash tests/docker_smoke.sh 192.168.1.0/24 192.168.1.1   # on a Docker host: the full Docker version, cleans up after itself
 ```
 
-## Licens
+The code, comments and commit messages are in Swedish; the user interface is available in Swedish and English.
 
-[MIT](LICENSE) – fritt att använda, ändra och dela vidare.
+## License
+
+[MIT](LICENSE) – free to use, modify and share.

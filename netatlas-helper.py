@@ -8,8 +8,32 @@ HTTP-titel och Shelly-identifiering). Endast standardbiblioteket används.
     python netatlas-helper.py               # starta och öppna webbläsaren
     python netatlas-helper.py --update-oui  # hämta tillverkarlista (IEEE) först
 """
+
+
+def _svenska():
+    """Texterna i konsolfönstret: svenska om datorn är på svenska (Windows: visningsspråket, annars LANG)."""
+    import os
+    val = (os.environ.get('NETATLAS_LANG') or '').lower()
+    if val in ('sv', 'en'):
+        return val == 'sv'
+    try:
+        if os.name == 'nt':
+            import ctypes
+            return ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF == 0x1D  # 0x1D = svenska
+    except Exception:
+        pass
+    return (os.environ.get('LC_ALL') or os.environ.get('LANG') or '').lower().startswith('sv')
+
+
+SV_CONSOLE = _svenska() if __name__ == '__main__' else True
+
+
+def con(sv, en):
+    return sv if SV_CONSOLE else en
+
+
 if __name__ == '__main__':
-    print('Startar NetAtlas …', flush=True)  # syns direkt, innan resten laddas
+    print(con('Startar NetAtlas …', 'Starting NetAtlas …'), flush=True)  # syns direkt, innan resten laddas
 import argparse
 import concurrent.futures as cf
 import html
@@ -1804,23 +1828,26 @@ def main():
     a = ap.parse_args()
     load_oui()
     if a.update_oui:
-        print('Hämtar tillverkarlista från IEEE …')
+        print(con('Hämtar tillverkarlista från IEEE …', 'Downloading the manufacturer list from IEEE …'))
         update_oui()
-        print(f'{len(OUI)} tillverkare inlästa.')
+        print(con(f'{len(OUI)} tillverkare inlästa.', f'{len(OUI)} manufacturers loaded.'))
     url = f'http://127.0.0.1:{a.port}/'
     MOBILE['port'] = a.port + 2
 
     try:
         srv = FastServer(('127.0.0.1', a.port), Handler)
     except OSError:
-        print(f'NetAtlas körs redan på {url} – öppnar webbläsaren.')
+        print(con(f'NetAtlas körs redan på {url} – öppnar webbläsaren.', f'NetAtlas is already running at {url} – opening the browser.'))
         if not a.no_browser:
             webbrowser.open(url)
         time.sleep(3)
         return
-    print(f'NetAtlas körs på {url}')
-    print(f'Lokala nät: {", ".join(local_cidrs()) or "okänt"} · tillverkarlista: {len(OUI) or "saknas"}')
-    print('Låt det här fönstret vara öppet medan du använder NetAtlas. Stäng det (eller tryck Ctrl+C) för att avsluta.')
+    nets = ', '.join(local_cidrs())
+    print(con(f'NetAtlas körs på {url}', f'NetAtlas is running at {url}'))
+    print(con(f'Lokala nät: {nets or "okänt"} · tillverkarlista: {len(OUI) or "saknas"}',
+              f'Local networks: {nets or "unknown"} · manufacturer list: {len(OUI) or "missing"}'))
+    print(con('Låt det här fönstret vara öppet medan du använder NetAtlas. Stäng det (eller tryck Ctrl+C) för att avsluta.',
+              'Keep this window open while you use NetAtlas. Close it (or press Ctrl+C) to quit.'))
     if not a.no_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
