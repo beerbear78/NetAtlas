@@ -75,7 +75,7 @@ body:not(.ready) #modal .card::before{content:"";display:block;width:44px;height
 .nv .lbl{flex:1;overflow:hidden;text-overflow:ellipsis}
 .nb{min-width:20px;height:20px;border-radius:10px;background:var(--surface3);color:var(--text);font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;font-variant-numeric:tabular-nums}
 .nb.hi{background:var(--danger);color:#fff}
-#btnMore,#navShade{display:none}
+#btnMore,#navShade,#listShade,#lpClose{display:none}
 html,body{overscroll-behavior:none}
 body.navmin #nav{width:64px;padding-left:8px;padding-right:8px}
 body.navmin #nav .lbl{display:none}
@@ -448,7 +448,13 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
   #main{display:block;overflow:auto}
   body[data-page] #main{overflow:hidden}
   .mapwrap{height:62vh;flex:none}
-  #listPane{position:absolute;left:0;top:0;bottom:0;z-index:3;box-shadow:var(--shadow-lg)}
+  /* enhetslistan: utdragbar meny från vänster med ✕, mörk bakgrund och bakåtknapp */
+  #listPane{position:fixed;left:0;top:0;bottom:0;width:min(86vw,340px);z-index:55;box-shadow:var(--shadow-lg);border-right:0;padding-bottom:env(safe-area-inset-bottom)}
+  body[data-view="map"]:not(.nolist):not([data-page]) #listShade{display:block;position:fixed;inset:0;z-index:54;background:rgba(0,0,0,.45)}
+  #listPane .lph{align-items:center;font-size:14px;color:var(--text);margin-bottom:10px}
+  #listPane .lph #lpCount{margin-left:8px;margin-right:auto;color:var(--muted)}
+  #lpClose{display:inline-flex}
+  body[data-page] #listPane{display:none}
   #panel{width:auto;border-left:0;border-top:1px solid var(--border);overflow:visible}
   #vDevices{padding:0}
   .vcard{border-radius:0;border-width:0 0 1px;box-shadow:none}
@@ -480,8 +486,8 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
   body.navmore #nav .nv .lbl{font-size:15px;text-align:left;flex:1}
   body.navmore #nav .nb{position:static;min-width:20px;height:20px;font-size:11px}
   /* vald enhet eller rum: panelen i helskärm – stängs med ✕ eller telefonens bakåtknapp */
-  body.has-sel #panel{position:fixed;inset:0;z-index:50;display:block;width:auto;border:0;overflow:auto;padding:14px 16px calc(28px + env(safe-area-inset-bottom))}
-  body.has-sel .pclose{position:fixed;top:10px;right:10px;background:var(--surface);border:1px solid var(--border)!important;box-shadow:var(--shadow);z-index:51}
+  body.has-sel #panel{position:fixed;inset:0;z-index:57;display:block;width:auto;border:0;overflow:auto;padding:14px 16px calc(28px + env(safe-area-inset-bottom))}
+  body.has-sel .pclose{position:fixed;top:10px;right:10px;background:var(--surface);border:1px solid var(--border)!important;box-shadow:var(--shadow);z-index:58}
 }
 @media (pointer:coarse){
   .tbar button,.tbar select{min-height:38px}
@@ -560,7 +566,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
           <button id="btnFit" class="icon" title="Anpassa vy"><i data-ic="fit"></i></button>
         </div>
         <div class="mapwrap">
-          <aside id="listPane"><div class="top"><div class="lph"><span>Enheter</span><span id="lpCount"></span></div><div id="chips" data-chips></div></div><ul id="devList"></ul></aside>
+          <div id="listShade"></div><aside id="listPane"><div class="top"><div class="lph"><span>Enheter</span><span id="lpCount"></span><button class="icon ghost" id="lpClose" title="Stäng listan"><i data-ic="x"></i></button></div><div id="chips" data-chips></div></div><ul id="devList"></ul></aside>
           <section id="stage">
             <svg id="svg" xmlns="http://www.w3.org/2000/svg" data-mode="select">
       <defs><pattern id="gridPat" width="50" height="50" patternUnits="userSpaceOnUse"><path class="gridline" d="M50 0H0V50" fill="none" stroke-width="1"/></pattern></defs>
@@ -1742,7 +1748,8 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
   "Inget certifikat (TLS är avstängt).": "No certificate (TLS is turned off).",
   "För många misslyckade försök – vänta några minuter och försök igen.": "Too many failed attempts – wait a few minutes and try again.",
   "Mer": "More",
-  "Fler sidor och inställningar": "More pages and settings"
+  "Fler sidor och inställningar": "More pages and settings",
+  "Stäng listan": "Close the list"
 },
 "en_rx": [
   ["^Ogiltig eller icke-privat adress: ", "Invalid or non-private address: "],
@@ -4801,7 +4808,8 @@ function initUI(){
   $('#nav').addEventListener('click', e => { if(e.target.closest('.nv') && !e.target.closest('#btnMore')) document.body.classList.remove('navmore'); });
   // mobil: telefonens bakåtknapp stänger det som ligger överst (menyn, panelen eller sidan) i stället för att lämna appen
   const narrow = matchMedia('(max-width:760px)'), B = document.body;
-  const overlay = () => narrow.matches && (B.classList.contains('navmore') || B.classList.contains('has-sel') || !!B.dataset.page);
+  const listOpen = () => B.dataset.view === 'map' && !B.classList.contains('nolist') && !B.dataset.page;
+  const overlay = () => narrow.matches && (B.classList.contains('navmore') || B.classList.contains('has-sel') || !!B.dataset.page || listOpen());
   new MutationObserver(() => {
     if(overlay()){ if(!history.state?.na) history.pushState({na:1}, ''); }
     else if(history.state?.na) history.back();
@@ -4810,9 +4818,12 @@ function initUI(){
     if(B.classList.contains('navmore')) B.classList.remove('navmore');
     else if(B.classList.contains('has-sel')) select(null);
     else if(B.dataset.page) closePage();
+    else if(listOpen()) setList(false);
   });
   $('#btnList').classList.toggle('on', !document.body.classList.contains('nolist'));
-  $('#btnList').onclick = () => { const off = document.body.classList.toggle('nolist'); lsSet('itinv.ui.list', off ? '0' : '1'); $('#btnList').classList.toggle('on', !off); };
+  const setList = on => { document.body.classList.toggle('nolist', !on); if(!narrow.matches) lsSet('itinv.ui.list', on ? '1' : '0'); $('#btnList').classList.toggle('on', on); };
+  $('#btnList').onclick = () => setList(document.body.classList.contains('nolist'));
+  $('#lpClose').onclick = $('#listShade').onclick = () => setList(false);
   $('#vDash').addEventListener('click', e => {
     const t = e.target.closest('[data-nav],[data-go],[data-jopen],[data-act],[data-dq],[data-dtodo],[data-dplan],[data-dlic],[data-dash]'); if(!t) return;
     const D = t.dataset;
@@ -5456,7 +5467,7 @@ function initUI(){
 document.querySelectorAll('i[data-ic]').forEach(el => { el.outerHTML = ic(el.dataset.ic); });
 document.body.dataset.view = VIEW;
 if(lsGet('itinv.ui.navmin') === '1') document.body.classList.add('navmin');
-if(lsGet('itinv.ui.list') === '0' || (!lsGet('itinv.ui.list') && innerWidth < 1400)) document.body.classList.add('nolist');
+if(lsGet('itinv.ui.list') === '0' || (!lsGet('itinv.ui.list') && innerWidth < 1400) || innerWidth <= 760) document.body.classList.add('nolist');
 tickClock(); setInterval(tickClock, 1000);
 // installerbar app (PWA) – kräver https eller localhost, annars händer inget
 if('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('/sw.js').catch(() => {});
