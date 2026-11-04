@@ -20,6 +20,7 @@ jobs:
         run: |
           mkdir -p dist/NetAtlas
           cp netatlas.html netatlas-helper.py "Start NetAtlas.bat" LICENSE dist/NetAtlas/
+          mkdir -p dist/NetAtlas/assets && cp assets/*.png dist/NetAtlas/assets/
           cat > dist/NetAtlas/README.txt <<'EOF'
           NetAtlas for Windows
           ====================

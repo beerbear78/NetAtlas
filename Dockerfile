@@ -33,6 +33,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 COPY netatlas-helper.py netatlas.html ./
+COPY assets/ ./assets/
 COPY server/ ./server/
 RUN python server/strip_plans.py netatlas.html \
  && chmod 755 server/entrypoint.sh \

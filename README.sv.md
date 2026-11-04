@@ -16,6 +16,8 @@ husets planlösning – med konton och lösenord som krypteras i webbläsaren.
 - **Rutiner och jobb** – import från Home Assistant, Unraid och Linux (cron/systemd via SSH)
 - **Avtal och licenser**, säkerhetskopior (lokalt, synkmapp, S3/WebDAV), mobilkopia, utskrift och tvåstegsinloggning
 - **Svenska och engelska** – byt med jordgloben (🌐) i toppfältet, på inloggningsrutan eller under Inställningar
+- **App för Android och Windows** – installera från servern (PWA) och redigera samma data i mobilen och på datorn;
+  mobillayout med flikrad och nypzoom på kartan ([så gör du](DEPLOY.sv.md#9-använd-netatlas-som-app-android-och-windows))
 
 ## Kom igång
 

@@ -185,6 +185,32 @@ docker compose logs -f app                               # logs
 
 Sign out: `https://SERVER-IP:8770/logout`.
 
+## 9. Use NetAtlas as an app (Android and Windows)
+
+NetAtlas can be installed as an app – with its own icon, full screen and a mobile layout with a tab bar at the
+bottom. Phone and computer then edit the same data on the server. Android only installs apps from an address with a
+trusted certificate (not the self-signed one), so the easiest way is **Tailscale**: a real certificate and access from
+anywhere, without opening any ports.
+
+1. **Unraid:** install the *Tailscale* plugin from *Apps* and sign in (*Settings → Tailscale*).
+2. **Tailscale admin** ([login.tailscale.com](https://login.tailscale.com/admin/dns)): turn on *MagicDNS* and
+   *HTTPS Certificates* under *DNS*.
+3. **Unraid terminal:** publish NetAtlas in your tailnet (only your own devices can reach it):
+
+   ```bash
+   tailscale serve --bg https+insecure://localhost:8770
+   tailscale serve status        # shows the address, e.g. https://tower.your-tailnet.ts.net
+   ```
+
+   (`https+insecure` because NetAtlas' own certificate is self-signed; that traffic never leaves the server.)
+4. **Phone:** install the Tailscale app and sign in with the same account. Open the address in Chrome →
+   menu ⋮ → *Install app*.
+5. **Windows:** with Tailscale running, open the address in Edge or Chrome → the install icon in the address bar.
+
+Tailscale must be on in the device, also at home (traffic then goes directly within your network). If you have set
+`ALLOWED_HOSTS` in `.env`, add the Tailscale name. Prefer a public address without Tailscale? Use a Cloudflare Tunnel
+and set `LOGIN_2FA=required`.
+
 ## Troubleshooting
 
 | Problem | Solution |
@@ -196,6 +222,7 @@ Sign out: `https://SERVER-IP:8770/logout`.
 | The database is slow | Put `APPDATA` directly on the cache pool, e.g. `/mnt/cache/appdata/netatlas`. |
 | "Could not pull the image" / `manifest unknown` | Check the internet connection and `NETATLAS_TAG` in `.env` (does the version exist under *Releases*?). |
 | Unraid: `docker compose` is missing | Install the *Docker Compose Manager* plugin from *Apps*. |
+| No “Install app” on the phone | Use the Tailscale address (step 9) – not the IP address with the self-signed certificate. |
 | Unraid: "image not found" when updating in the Docker tab | Use *Compose → netatlas → Update Stack* (or the terminal), see step 6. |
 
 **A regular Linux server instead of Unraid:** the installer works the same way (it suggests `/opt/netatlas`).

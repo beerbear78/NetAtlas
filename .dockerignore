@@ -23,5 +23,5 @@ IT-inventarie
 tests
 .github
 install.sh
-assets
+tools
 docker-compose*.yml

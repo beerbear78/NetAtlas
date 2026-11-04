@@ -378,6 +378,8 @@ def app(environ, start_response):
             code, headers, body = _redirect('/login', [_set_cookie(environ, '', 0)])
         elif path == '/netatlas.crt':
             code, headers, body = certificate()
+        elif path in ('/manifest.webmanifest', '/sw.js') or path.startswith('/assets/'):
+            code, headers, body = run_helper(environ)  # appinstallationen: webbläsaren hämtar dem utan inloggningskaka
         else:
             sess = valid_session(_session_cookie(environ))
             if not sess:
