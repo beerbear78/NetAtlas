@@ -1634,6 +1634,32 @@ def mobile_save(html, d):
     return {'path': path}
 
 
+# ---------- installerbar app (PWA): manifest, service worker och ikoner ----------
+ASSET_DIR = os.path.join(HERE, 'assets')
+ASSETS = ('icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'netatlas-icon.png')
+MANIFEST = {
+    'name': 'NetAtlas', 'short_name': 'NetAtlas', 'id': '/', 'start_url': '/', 'scope': '/', 'display': 'standalone',
+    'description': 'IT inventory on your floor plan', 'background_color': '#f3f4f6', 'theme_color': '#006fff',
+    'icons': [{'src': '/assets/icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
+              {'src': '/assets/icon-512.png', 'sizes': '512x512', 'type': 'image/png'},
+              {'src': '/assets/icon-maskable-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'}],
+}
+# Startar appen snabbt och gör den installerbar. API-anrop går alltid direkt till servern (inget sparas offline).
+SERVICE_WORKER = """'use strict';
+const CACHE = 'netatlas-v1';
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+self.addEventListener('fetch', e => {
+  const u = new URL(e.request.url);
+  if (e.request.method !== 'GET' || u.origin !== location.origin || e.request.mode !== 'navigate' || u.pathname !== '/') return;
+  e.respondWith(fetch(e.request).then(r => {
+    if (r.ok && !r.redirected) { const c = r.clone(); caches.open(CACHE).then(x => x.put('/', c)); }
+    return r;
+  }).catch(() => caches.match('/').then(r => r || Response.error())));
+});
+"""
+
+
 # ---------- webbserver ----------
 class Handler(BaseHTTPRequestHandler):
     server_version = 'itinv'
@@ -1666,6 +1692,16 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(200, f.read(), 'text/html; charset=utf-8')
             except OSError:
                 return self.send(404, 'netatlas.html saknas bredvid netatlas-helper.py'.encode('utf-8'), 'text/plain; charset=utf-8')
+        if u.path == '/manifest.webmanifest':
+            return self.send(200, json.dumps(MANIFEST).encode('utf-8'), 'application/manifest+json')
+        if u.path == '/sw.js':
+            return self.send(200, SERVICE_WORKER.encode('utf-8'), 'text/javascript; charset=utf-8')
+        if u.path.startswith('/assets/') and u.path[8:] in ASSETS:
+            try:
+                with open(os.path.join(ASSET_DIR, u.path[8:]), 'rb') as f:
+                    return self.send(200, f.read(), 'image/png')
+            except OSError:
+                return self.send(404, b'Not found', 'text/plain')
         if not u.path.startswith('/api/'):
             return self.send(404, b'Not found', 'text/plain')
         # anpassad header => andra webbplatser kan inte anropa API:t (kräver CORS-preflight som vi aldrig godkänner)

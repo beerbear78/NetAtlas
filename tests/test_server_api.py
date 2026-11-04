@@ -59,6 +59,14 @@ c, h, j = req('/health'); check('health 200', c == 200 and j['db'] == 'ok', j)
 c, h, j = req('/', raw=True); check('/ utan inloggning -> /login', c == 302 and h['Location'] == '/login', c)
 c, h, j = req('/api/info'); check('API utan inloggning -> 401', c == 401 and j.get('login') is True, (c, j))
 c, h, j = req('/login', raw=True); check('inloggningssidan', c == 200 and b'Logga in' in j, c)
+# installerbar app: manifest, service worker och ikoner hämtas utan inloggning – men inget annat
+c, h, j = req('/manifest.webmanifest'); check('manifest utan inloggning', c == 200 and j['start_url'] == '/'
+                                              and any(i['sizes'] == '512x512' for i in j['icons']), (c, j))
+c, h, j = req('/sw.js', raw=True); check('service worker utan inloggning', c == 200 and b'fetch' in j
+                                         and 'javascript' in h['Content-Type'], c)
+c, h, j = req('/assets/icon-192.png', raw=True); check('ikon utan inloggning', c == 200 and j[:4] == b'\x89PNG', c)
+c, h, j = req('/assets/../netatlas.html', raw=True); check('/assets/ släpper inte igenom andra filer', c == 404, c)
+c, h, j = req('/assets/x.png', raw=True); check('/assets/ bara kända ikoner', c == 404, c)
 c, h, j = req('/login', {'user': U, 'pass': 'fel'}); check('fel lösenord -> 401', c == 401, (c, j))
 c, h, j = req('/login', {'user': U, 'pass': P}, headers={'Origin': 'http://evil.example'}); check('annan Origin -> 403', c == 403, (c, j))
 c, h, j = req('/login', {'user': U, 'pass': P}); check('första inloggningen: tvåsteg erbjuds', c == 200 and j.get('offer') and not j.get('ok'), j)

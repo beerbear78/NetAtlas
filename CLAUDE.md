@@ -15,6 +15,10 @@
   (PostgreSQL, `server/store.py`). Inloggning, sessionskaka och valfri TOTP ligger i `server/app.py`.
   Frontend vet läget via `HELPER.storage` / `onServer()` och laddar/sparar valvet via `/api/vault`.
 - Ändringar i `netatlas.html` och `netatlas-helper.py` måste fungera i **båda** lägena.
+- **App (PWA):** manifest och service worker ligger i `netatlas-helper.py` (`MANIFEST`, `SERVICE_WORKER`), ikonerna
+  i `assets/` (skapas med `tools/make_icons.py`); `server/app.py` släpper igenom dem utan inloggning. Mobillayouten
+  (≤760 px: flikrad i botten, Mer-ark, panelen i helskärm, telefonens bakåtknapp, nypzoom) finns i `netatlas.html`.
+  Byt `CACHE`-namnet i service workern när den ändras. Service workers fungerar inte i förhandsgranskningens panel.
 
 ## Regler
 

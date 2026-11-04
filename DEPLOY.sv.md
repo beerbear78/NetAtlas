@@ -182,6 +182,31 @@ docker compose logs -f app                               # loggar
 
 Logga ut: `https://SERVERNS-IP:8770/logout`.
 
+## 9. Använd NetAtlas som app (Android och Windows)
+
+NetAtlas kan installeras som en app – med egen ikon, helskärm och en mobillayout med flikrad i botten. Telefon och
+dator redigerar då samma data på servern. Android installerar bara appar från en adress med betrott certifikat (inte
+det självsignerade), så enklast är **Tailscale**: riktigt certifikat och åtkomst var som helst, utan öppna portar.
+
+1. **Unraid:** installera pluginet *Tailscale* från *Apps* och logga in (*Settings → Tailscale*).
+2. **Tailscale-admin** ([login.tailscale.com](https://login.tailscale.com/admin/dns)): slå på *MagicDNS* och
+   *HTTPS Certificates* under *DNS*.
+3. **Unraids terminal:** publicera NetAtlas i ditt tailnet (bara dina egna enheter når den):
+
+   ```bash
+   tailscale serve --bg https+insecure://localhost:8770
+   tailscale serve status        # visar adressen, t.ex. https://tower.ditt-tailnet.ts.net
+   ```
+
+   (`https+insecure` eftersom NetAtlas eget certifikat är självsignerat; den trafiken lämnar aldrig servern.)
+4. **Telefonen:** installera Tailscale-appen och logga in med samma konto. Öppna adressen i Chrome →
+   menyn ⋮ → *Installera app*.
+5. **Windows:** med Tailscale igång, öppna adressen i Edge eller Chrome → installationsikonen i adressfältet.
+
+Tailscale ska vara på i enheten, även hemma (trafiken går då direkt i ditt nät). Har du satt `ALLOWED_HOSTS` i `.env`,
+lägg till Tailscale-namnet. Vill du hellre ha en publik adress utan Tailscale? Använd en Cloudflare Tunnel och sätt
+`LOGIN_2FA=required`.
+
 ## Felsökning
 
 | Problem | Lösning |
@@ -193,6 +218,7 @@ Logga ut: `https://SERVERNS-IP:8770/logout`.
 | Databasen långsam | Lägg `APPDATA` direkt på cache-poolen, t.ex. `/mnt/cache/appdata/netatlas`. |
 | "Kunde inte hämta imagen" / `manifest unknown` | Kontrollera internet och `NETATLAS_TAG` i `.env` (finns versionen under *Releases*?). |
 | Unraid: `docker compose` saknas | Installera pluginet *Docker Compose Manager* från *Apps*. |
+| Ingen ”Installera app” i mobilen | Använd Tailscale-adressen (steg 9) – inte IP-adressen med det självsignerade certifikatet. |
 | Unraid: "image not found" vid uppdatering i Docker-fliken | Använd *Compose → netatlas → Update Stack* (eller terminalen), se steg 6. |
 
 **Vanlig Linux-server i stället för Unraid:** installationsskriptet fungerar likadant (föreslår `/opt/netatlas`).

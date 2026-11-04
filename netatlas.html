@@ -2,8 +2,12 @@
 <html lang="sv">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NetAtlas</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/assets/icon-192.png">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1c1f" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23006fff'/%3E%3Cpath d='M16 9.5 9.5 21.5h13z' fill='none' stroke='%23fff' stroke-opacity='.75' stroke-width='1.8' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='9.5' r='2.9' fill='%23fff'/%3E%3Ccircle cx='9.5' cy='21.5' r='2.9' fill='%23fff'/%3E%3Ccircle cx='22.5' cy='21.5' r='2.9' fill='%23fff'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -71,6 +75,8 @@ body:not(.ready) #modal .card::before{content:"";display:block;width:44px;height
 .nv .lbl{flex:1;overflow:hidden;text-overflow:ellipsis}
 .nb{min-width:20px;height:20px;border-radius:10px;background:var(--surface3);color:var(--text);font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;padding:0 6px;font-variant-numeric:tabular-nums}
 .nb.hi{background:var(--danger);color:#fff}
+#btnMore,#navShade,#listShade,#lpClose{display:none}
+html,body{overscroll-behavior:none}
 body.navmin #nav{width:64px;padding-left:8px;padding-right:8px}
 body.navmin #nav .lbl{display:none}
 body.navmin #nav .brand{justify-content:center;padding:2px 0 18px}
@@ -442,7 +448,13 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
   #main{display:block;overflow:auto}
   body[data-page] #main{overflow:hidden}
   .mapwrap{height:62vh;flex:none}
-  #listPane{position:absolute;left:0;top:0;bottom:0;z-index:3;box-shadow:var(--shadow-lg)}
+  /* enhetslistan: utdragbar meny från vänster med ✕, mörk bakgrund och bakåtknapp */
+  #listPane{position:fixed;left:0;top:0;bottom:0;width:min(86vw,340px);z-index:55;box-shadow:var(--shadow-lg);border-right:0;padding-bottom:env(safe-area-inset-bottom)}
+  body[data-view="map"]:not(.nolist):not([data-page]) #listShade{display:block;position:fixed;inset:0;z-index:54;background:rgba(0,0,0,.45)}
+  #listPane .lph{align-items:center;font-size:14px;color:var(--text);margin-bottom:10px}
+  #listPane .lph #lpCount{margin-left:8px;margin-right:auto;color:var(--muted)}
+  #lpClose{display:inline-flex}
+  body[data-page] #listPane{display:none}
   #panel{width:auto;border-left:0;border-top:1px solid var(--border);overflow:visible}
   #vDevices{padding:0}
   .vcard{border-radius:0;border-width:0 0 1px;box-shadow:none}
@@ -451,6 +463,36 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
   .dlg .sd{border-radius:0;border:0}
   .dlg .sdh{padding:10px 14px}
   .dlg .sdb{padding:0 14px 20px}
+  /* mobil: flikrad i botten (som UniFi-appen), övriga sidor under "Mer" */
+  #shell{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto}
+  #app{grid-row:1;grid-column:1}
+  #nav{grid-row:2;grid-column:1;width:auto;flex-direction:row;align-items:stretch;padding:2px 4px calc(2px + env(safe-area-inset-bottom));border-right:0;border-top:1px solid var(--border);overflow:visible}
+  #nav .brand,#nav .nsep,#nav .navb,#btnIp,#btnJobs,#btnLic,#btnTodo{display:none}
+  #nav .navs{flex-direction:row;flex:1;gap:2px}
+  #nav .nv{flex:1 1 0;min-width:0;flex-direction:column;justify-content:center;gap:3px;padding:7px 2px 5px;border-radius:10px}
+  #nav .nv .lbl{display:block;flex:none;font-size:10.5px;line-height:1.15;max-width:100%;text-align:center}
+  #nav .nv .ic{width:22px;height:22px}
+  #nav .nb{position:absolute;top:3px;left:calc(50% + 6px);right:auto;min-width:16px;height:16px;font-size:10px;padding:0 4px}
+  #btnMore{display:flex}
+  body[data-page]:not([data-page="scan"]) #btnMore{background:var(--accent-soft);color:var(--accent)}
+  /* "Mer": hela menyn som ark nerifrån */
+  body.navmore #navShade{display:block;position:fixed;inset:0;z-index:59;background:rgba(0,0,0,.45)}
+  body.navmore #nav{position:fixed;left:0;right:0;bottom:0;z-index:60;flex-direction:column;max-height:85vh;overflow:auto;border-radius:16px 16px 0 0;box-shadow:var(--shadow-lg);padding:10px 10px calc(10px + env(safe-area-inset-bottom))}
+  body.navmore #nav .navs,body.navmore #nav .navb{display:flex;flex-direction:column;gap:2px}
+  body.navmore #nav .navb{margin-top:6px}
+  body.navmore #btnIp,body.navmore #btnJobs,body.navmore #btnLic,body.navmore #btnTodo{display:flex}
+  body.navmore #btnMore,body.navmore #btnNavMin{display:none}
+  body.navmore #nav .nv{flex:none;flex-direction:row;justify-content:flex-start;gap:14px;padding:12px 14px}
+  body.navmore #nav .nv .lbl{font-size:15px;text-align:left;flex:1}
+  body.navmore #nav .nb{position:static;min-width:20px;height:20px;font-size:11px}
+  /* vald enhet eller rum: panelen i helskärm – stängs med ✕ eller telefonens bakåtknapp */
+  body.has-sel #panel{position:fixed;inset:0;z-index:57;display:block;width:auto;border:0;overflow:auto;padding:14px 16px calc(28px + env(safe-area-inset-bottom))}
+  body.has-sel .pclose{position:fixed;top:10px;right:10px;background:var(--surface);border:1px solid var(--border)!important;box-shadow:var(--shadow);z-index:58}
+}
+@media (pointer:coarse){
+  .tbar button,.tbar select{min-height:38px}
+  button.icon{min-height:34px}
+  #panel input,#panel select,.dlg input,.dlg select{min-height:38px}
 }
 @media (max-width:520px){
   #top .site>.ic{display:none}
@@ -478,6 +520,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
       <button class="nv" id="btnJobs" data-nav="jobs" title="Rutiner, automationer och schemalagda jobb"><i data-ic="clock"></i><span class="lbl">Rutiner</span></button>
       <button class="nv" id="btnLic" data-nav="lic" title="Licenser, abonnemang, domäner och certifikat"><i data-ic="doc"></i><span class="lbl">Avtal</span></button>
       <button class="nv" id="btnTodo" data-nav="todo" title="Påminnelser och säkerhetskontroller"><i data-ic="alert"></i><span class="lbl">Att göra</span><span class="nb" id="nbTodo" hidden></span></button>
+      <button class="nv" id="btnMore" title="Fler sidor och inställningar"><i data-ic="more"></i><span class="lbl">Mer</span><span class="nb hi" id="nbMore" hidden></span></button>
     </div>
     <div class="navb">
       <button class="nv" id="btnSettings" data-nav="set" title="Inställningar, säkerhetskopior, export och import"><i data-ic="sliders"></i><span class="lbl">Inställningar</span></button>
@@ -486,6 +529,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
       <button class="nv" id="btnNavMin" title="Fäll ihop eller fäll ut menyn"><i data-ic="collapse"></i><span class="lbl">Fäll ihop</span></button>
     </div>
   </nav>
+  <div id="navShade"></div>
   <div id="app">
     <header id="top">
       <div class="site" title="Plats – t.ex. hemmet, sommarstugan eller kontoret"><i data-ic="pin"></i><select id="siteSel" aria-label="Plats"></select></div>
@@ -522,7 +566,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
           <button id="btnFit" class="icon" title="Anpassa vy"><i data-ic="fit"></i></button>
         </div>
         <div class="mapwrap">
-          <aside id="listPane"><div class="top"><div class="lph"><span>Enheter</span><span id="lpCount"></span></div><div id="chips" data-chips></div></div><ul id="devList"></ul></aside>
+          <div id="listShade"></div><aside id="listPane"><div class="top"><div class="lph"><span>Enheter</span><span id="lpCount"></span><button class="icon ghost" id="lpClose" title="Stäng listan"><i data-ic="x"></i></button></div><div id="chips" data-chips></div></div><ul id="devList"></ul></aside>
           <section id="stage">
             <svg id="svg" xmlns="http://www.w3.org/2000/svg" data-mode="select">
       <defs><pattern id="gridPat" width="50" height="50" patternUnits="userSpaceOnUse"><path class="gridline" d="M50 0H0V50" fill="none" stroke-width="1"/></pattern></defs>
@@ -1702,7 +1746,10 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
   "Inloggningen har gått ut – logga in igen.": "Your sign-in has expired – sign in again.",
   "Internt fel i servern – se loggen (docker compose logs app).": "Internal server error – see the log (docker compose logs app).",
   "Inget certifikat (TLS är avstängt).": "No certificate (TLS is turned off).",
-  "För många misslyckade försök – vänta några minuter och försök igen.": "Too many failed attempts – wait a few minutes and try again."
+  "För många misslyckade försök – vänta några minuter och försök igen.": "Too many failed attempts – wait a few minutes and try again.",
+  "Mer": "More",
+  "Fler sidor och inställningar": "More pages and settings",
+  "Stäng listan": "Close the list"
 },
 "en_rx": [
   ["^Ogiltig eller icke-privat adress: ", "Invalid or non-private address: "],
@@ -1865,6 +1912,7 @@ const IC = {
   redo:'<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
   x:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   back:'<path d="M14.5 18 8.5 12l6-6"/>',
+  more:'<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
   globe:'<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.3 2.4 3.5 5.2 3.5 8.5s-1.2 6.1-3.5 8.5c-2.3-2.4-3.5-5.2-3.5-8.5s1.2-6.1 3.5-8.5z"/>'
 };
 const ic = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${IC[n] || ''}</svg>`;
@@ -4123,6 +4171,7 @@ function renderTodoBadge(){
   const b = $('#btnTodo'), nb = $('#nbTodo'); if(!b || !db) return;
   const ts = todos(), hi = ts.filter(t => t.sev === 'high').length, n = ts.filter(t => t.sev !== 'low').length;
   nb.textContent = n || ''; nb.hidden = !n; nb.classList.toggle('hi', hi > 0);
+  const nm = $('#nbMore'); if(nm){ nm.textContent = hi || ''; nm.hidden = !hi; }  // mobil: viktiga punkter syns på "Mer"
   b.title = ts.length ? tx`${hi} viktiga, ${n - hi} bör åtgärdas, ${ts.length - n} info` : tx('Inget att åtgärda');
 }
 
@@ -4753,8 +4802,28 @@ function initUI(){
   $('#btnPrint').onclick = printAll;
   document.querySelectorAll('#nav [data-nav="dash"],#nav [data-nav="map"],#nav [data-nav="devices"]').forEach(b => b.onclick = () => setView(b.dataset.nav));
   $('#btnNavMin').onclick = () => lsSet('itinv.ui.navmin', document.body.classList.toggle('navmin') ? '1' : '');
+  // mobil: "Mer" öppnar hela menyn som ark; ett val i menyn eller en tryckning utanför stänger den
+  $('#btnMore').onclick = () => document.body.classList.toggle('navmore');
+  $('#navShade').onclick = () => document.body.classList.remove('navmore');
+  $('#nav').addEventListener('click', e => { if(e.target.closest('.nv') && !e.target.closest('#btnMore')) document.body.classList.remove('navmore'); });
+  // mobil: telefonens bakåtknapp stänger det som ligger överst (menyn, panelen eller sidan) i stället för att lämna appen
+  const narrow = matchMedia('(max-width:760px)'), B = document.body;
+  const listOpen = () => B.dataset.view === 'map' && !B.classList.contains('nolist') && !B.dataset.page;
+  const overlay = () => narrow.matches && (B.classList.contains('navmore') || B.classList.contains('has-sel') || !!B.dataset.page || listOpen());
+  new MutationObserver(() => {
+    if(overlay()){ if(!history.state?.na) history.pushState({na:1}, ''); }
+    else if(history.state?.na) history.back();
+  }).observe(B, {attributes:true, attributeFilter:['class', 'data-page']});
+  window.addEventListener('popstate', () => {
+    if(B.classList.contains('navmore')) B.classList.remove('navmore');
+    else if(B.classList.contains('has-sel')) select(null);
+    else if(B.dataset.page) closePage();
+    else if(listOpen()) setList(false);
+  });
   $('#btnList').classList.toggle('on', !document.body.classList.contains('nolist'));
-  $('#btnList').onclick = () => { const off = document.body.classList.toggle('nolist'); lsSet('itinv.ui.list', off ? '0' : '1'); $('#btnList').classList.toggle('on', !off); };
+  const setList = on => { document.body.classList.toggle('nolist', !on); if(!narrow.matches) lsSet('itinv.ui.list', on ? '1' : '0'); $('#btnList').classList.toggle('on', on); };
+  $('#btnList').onclick = () => setList(document.body.classList.contains('nolist'));
+  $('#lpClose').onclick = $('#listShade').onclick = () => setList(false);
   $('#vDash').addEventListener('click', e => {
     const t = e.target.closest('[data-nav],[data-go],[data-jopen],[data-act],[data-dq],[data-dtodo],[data-dplan],[data-dlic],[data-dash]'); if(!t) return;
     const D = t.dataset;
@@ -5276,8 +5345,21 @@ function initUI(){
     const p = pt(e), f = e.deltaY > 0 ? 1.15 : 1/1.15, v = cur.view;
     v.x = p.x-(p.x-v.x)*f; v.y = p.y-(p.y-v.y)*f; v.w*=f; v.h*=f; applyView();
   }, {passive:false});
+  // två fingrar: nypzoom och panorering (pekskärm)
+  const narrowMap = () => matchMedia('(max-width:760px)').matches;
+  const touches = new Map();
+  const mid = () => { const [a, b] = [...touches.values()]; return {clientX:(a.clientX + b.clientX) / 2, clientY:(a.clientY + b.clientY) / 2, d:Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY) || 1}; };
+  const pinchStart = () => {
+    if(drag?.kind === 'newroom') $('#tmpLayer').innerHTML = '';
+    else if(drag?.moved && drag.kind !== 'pan'){ if(drag.d) drag.d.updated = Date.now(); save(); renderList(); }
+    const m = mid();
+    drag = {kind:'pinch', v0:{...cur.view}, d0:m.d, m0:pt(m)};
+  };
   s.addEventListener('pointerdown', e => {
     if(e.button !== 0) return;
+    touches.set(e.pointerId, e);
+    if(touches.size === 2){ pinchStart(); try{ s.setPointerCapture(e.pointerId); }catch{} return; }
+    if(touches.size > 2) return;
     const p = pt(e), P = plan();
     const dEl = e.target.closest('[data-dev]'), rEl = e.target.closest('[data-room]'), hEl = e.target.closest('[data-handle]');
     const cEl = e.target.closest('[data-camhandle]');
@@ -5291,23 +5373,34 @@ function initUI(){
       const rm = P.rooms.find(r=>r.id===hEl.dataset.handle); drag = {kind:'resize', rm, ox:p.x-(rm.x+rm.w), oy:p.y-(rm.y+rm.h)};
     } else if(dEl){
       const d = dev(dEl.dataset.dev);
-      if(cur.sel?.id !== d.id) select({kind:'dev', id:d.id});
-      drag = {kind:'dev', d, dx:p.x-d.x, dy:p.y-d.y};
+      // mobil: panelen täcker hela skärmen, så den öppnas först när fingret släpps utan att ha flyttat enheten
+      if(cur.sel?.id !== d.id && !narrowMap()) select({kind:'dev', id:d.id});
+      drag = {kind:'dev', d, dx:p.x-d.x, dy:p.y-d.y, later: narrowMap() ? {kind:'dev', id:d.id} : null};
     } else if(rEl){
       const rm = P.rooms.find(r=>r.id===rEl.dataset.room);
-      if(cur.sel?.id !== rm.id) select({kind:'room', id:rm.id});
+      if(cur.sel?.id !== rm.id && !narrowMap()) select({kind:'room', id:rm.id});
       // flytta även enheterna som står i rummet
       const inside = db.devices.filter(d => d.planId===P.id && roomOf(d)?.id===rm.id).map(d=>({d, x:d.x, y:d.y}));
-      drag = {kind:'room', rm, sx:p.x, sy:p.y, rx:rm.x, ry:rm.y, inside};
+      drag = {kind:'room', rm, sx:p.x, sy:p.y, rx:rm.x, ry:rm.y, inside, later: narrowMap() ? {kind:'room', id:rm.id} : null};
     } else {
       if(cur.sel) select(null);
       drag = {kind:'pan', start:p}; s.classList.add('panning');
     }
-    drag.moved = false;
-    s.setPointerCapture(e.pointerId);
+    drag.moved = false; drag.cx = e.clientX; drag.cy = e.clientY;
+    try{ s.setPointerCapture(e.pointerId); }catch{}
   });
   s.addEventListener('pointermove', e => {
+    if(touches.has(e.pointerId)) touches.set(e.pointerId, e);
     if(!drag) return;
+    if(drag.kind === 'pinch'){
+      if(touches.size < 2) return;
+      const m = mid(), f = drag.d0 / m.d, v = cur.view;
+      Object.assign(v, {x:drag.v0.x, y:drag.v0.y, w:drag.v0.w * f, h:drag.v0.h * f}); applyView();
+      const p1 = pt(m); v.x += drag.m0.x - p1.x; v.y += drag.m0.y - p1.y; applyView();
+      return;
+    }
+    // ett tryck ska inte råka flytta något: kräv en liten rörelse först (större med finger)
+    if(!drag.moved && drag.kind !== 'pan' && drag.kind !== 'newroom' && Math.hypot(e.clientX - drag.cx, e.clientY - drag.cy) < (e.pointerType === 'touch' ? 8 : 3)) return;
     const p = pt(e);
     switch(drag.kind){
       case 'pan': { const v=cur.view; v.x -= p.x-drag.start.x; v.y -= p.y-drag.start.y; applyView(); break; }
@@ -5340,10 +5433,12 @@ function initUI(){
     } else if(drag.moved){
       if(drag.d) drag.d.updated = Date.now();
       save(); renderList(); if(cur.sel) renderPanel();
-    }
+    } else if(drag.later) select(drag.later);
     s.classList.remove('panning'); drag = null;
   };
-  s.addEventListener('pointerup', end); s.addEventListener('pointercancel', end);
+  const up = e => { touches.delete(e.pointerId); if(drag?.kind === 'pinch') drag = null; else end(); };
+  s.addEventListener('pointerup', up); s.addEventListener('pointercancel', up);
+  s.addEventListener('lostpointercapture', e => touches.delete(e.pointerId));
 
   document.addEventListener('keydown', e => {
     const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
@@ -5372,8 +5467,10 @@ function initUI(){
 document.querySelectorAll('i[data-ic]').forEach(el => { el.outerHTML = ic(el.dataset.ic); });
 document.body.dataset.view = VIEW;
 if(lsGet('itinv.ui.navmin') === '1') document.body.classList.add('navmin');
-if(lsGet('itinv.ui.list') === '0' || (!lsGet('itinv.ui.list') && innerWidth < 1400)) document.body.classList.add('nolist');
+if(lsGet('itinv.ui.list') === '0' || (!lsGet('itinv.ui.list') && innerWidth < 1400) || innerWidth <= 760) document.body.classList.add('nolist');
 tickClock(); setInterval(tickClock, 1000);
+// installerbar app (PWA) – kräver https eller localhost, annars händer inget
+if('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('/sw.js').catch(() => {});
 start();
 </script>
 </body>

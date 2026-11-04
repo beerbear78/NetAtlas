@@ -16,6 +16,8 @@ plan of your home or office – with accounts and passwords that are encrypted i
 - **Routines and jobs** – import from Home Assistant, Unraid and Linux (cron/systemd over SSH)
 - **Contracts and licenses**, backups (local, sync folder, S3/WebDAV), mobile copy, printing and two-factor authentication
 - **English and Swedish** – switch with the globe (🌐) in the top bar, on the sign-in screen or under Settings
+- **App for Android and Windows** – install it from the server (PWA) and edit the same data on phone and computer;
+  mobile layout with a tab bar, pinch zoom on the map ([how](DEPLOY.md#9-use-netatlas-as-an-app-android-and-windows))
 
 ## Getting started
 
