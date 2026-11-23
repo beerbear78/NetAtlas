@@ -1749,7 +1749,27 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
   "För många misslyckade försök – vänta några minuter och försök igen.": "Too many failed attempts – wait a few minutes and try again.",
   "Mer": "More",
   "Fler sidor och inställningar": "More pages and settings",
-  "Stäng listan": "Close the list"
+  "Stäng listan": "Close the list",
+  "Fel återställningsnyckel för den här datan.": "Wrong recovery key for this data.",
+  "Lås upp med återställningsnyckeln": "Unlock with the recovery key",
+  "Har du sparat återställningsnyckeln för valvet låser du upp med den och väljer sedan ett nytt huvudlösenord.": "If you saved the vault recovery key, unlock with it and then choose a new master password.",
+  "NetAtlas – återställningsnyckel för valvet": "NetAtlas – vault recovery key",
+  "Öppnar valvet utan huvudlösenordet, t.ex. om du har glömt det: välj Glömt lösenordet? på upplåsningsrutan.\nGäller även säkerhetskopior som görs efter att nyckeln skapades.": "Opens the vault without the master password, e.g. if you have forgotten it: choose Forgot the password? on the unlock screen.\nAlso works for backups made after the key was created.",
+  "Spara återställningsnyckeln": "Save the recovery key",
+  "Med nyckeln kan du öppna valvet och välja ett nytt huvudlösenord om du glömmer det. <b>Den öppnar valvet utan lösenord<\/b> – förvara den som en reservnyckel: utskriven eller i en lösenordshanterare, inte bara på den här datorn.": "With this key you can open the vault and choose a new master password if you forget it. <b>It opens the vault without a password<\/b> – keep it like a spare key: printed out or in a password manager, not only on this computer.",
+  "Jag har sparat återställningsnyckeln på ett säkert ställe": "I have saved the recovery key in a safe place",
+  "Återställningsnyckel för valvet": "Vault recovery key",
+  "Skapa en återställningsnyckel för valvet?\n\nMed den kan du låsa upp och välja ett nytt huvudlösenord om du glömmer det. Utan den går datan inte att låsa upp – inte ens av den som sköter servern.": "Create a recovery key for the vault?\n\nWith it you can unlock and choose a new master password if you forget it. Without it the data cannot be unlocked – not even by whoever runs the server.",
+  "Skapa en ny återställningsnyckel? Den gamla slutar gälla för valvet (säkerhetskopior som redan gjorts kan fortfarande öppnas med den).": "Create a new recovery key? The old one stops working for the vault (backups already made can still be opened with it).",
+  "<b>Återställningsnyckel<\/b> skapad {0} – öppnar valvet om du glömmer huvudlösenordet.": "<b>Recovery key<\/b> created {0} – opens the vault if you forget the master password.",
+  "Visa…": "Show…",
+  "Skapa ny…": "Create new…",
+  "<b>Skapa en återställningsnyckel<\/b> Glömmer du huvudlösenordet går datan annars inte att låsa upp – inte ens av den som sköter servern.": "<b>Create a recovery key<\/b> Otherwise the data cannot be unlocked if you forget the master password – not even by whoever runs the server.",
+  "Skapa…": "Create…",
+  "Välj nytt huvudlösenord": "Choose a new master password",
+  "Valvet är upplåst med återställningsnyckeln. Välj ett nytt huvudlösenord – återställningsnyckeln fortsätter att gälla.": "The vault is unlocked with the recovery key. Choose a new master password – the recovery key stays valid.",
+  "Spara": "Save",
+  "Ingen återställningsnyckel för valvet – glömmer du huvudlösenordet går datan inte att låsa upp": "No vault recovery key – if you forget the master password the data cannot be unlocked"
 },
 "en_rx": [
   ["^Ogiltig eller icke-privat adress: ", "Invalid or non-private address: "],
@@ -1990,12 +2010,43 @@ function b64(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCo
 function unb64(s){const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
 async function derive(pw, salt){
   const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:310000, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+  return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations:310000, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, true, ['encrypt','decrypt']);
 }
 async function encryptDb(obj, k, s){
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, k, enc.encode(JSON.stringify(obj))));
-  return {app:'netatlas', v:1, salt:b64(s), iv:b64(iv), ct:b64(ct), ...(MFA ? {mfa:{kid:MFA.kid}} : {})};
+  const rk = obj.settings?.recovery?.key ? await recoveryWrap(obj.settings.recovery.key, k) : null;
+  return {app:'netatlas', v:1, salt:b64(s), iv:b64(iv), ct:b64(ct), ...(MFA ? {mfa:{kid:MFA.kid}} : {}), ...(rk ? {rk} : {})};
+}
+/* Återställningsnyckel för valvet: 32 slumpade byte som användaren förvarar själv. Den låser en kopia av valvets
+   nyckel (och tvåstegsnyckeln) i fältet rk, så att valvet kan öppnas utan huvudlösenordet. Själva nyckeln ligger
+   bara krypterad inne i valvet (settings.recovery), så att kopian kan låsas om när huvudlösenordet byts. */
+function b32enc(u8){
+  const A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits = 0, val = 0, out = '';
+  for(const b of u8){ val = ((val << 8) | b) & 0xffff; bits += 8; while(bits >= 5){ out += A[(val >>> (bits - 5)) & 31]; bits -= 5; } }
+  return bits ? out + A[(val << (5 - bits)) & 31] : out;
+}
+const newRecoveryKey = () => b32enc(crypto.getRandomValues(new Uint8Array(32))).match(/.{1,4}/g).join('-');
+async function rkKek(r, s){
+  const base = await crypto.subtle.importKey('raw', r, 'HKDF', false, ['deriveKey']);
+  return crypto.subtle.deriveKey({name:'HKDF', hash:'SHA-256', salt:s, info:enc.encode('netatlas-recovery-v1')}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+}
+async function recoveryWrap(rStr, k){
+  const s = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const raw = new Uint8Array(await crypto.subtle.exportKey('raw', k));
+  const body = enc.encode(JSON.stringify({k:b64(raw), kp:MFA ? b64(MFA.keyPart) : null}));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, await rkKek(b32dec(rStr), s), body));
+  return {salt:b64(s), iv:b64(iv), ct:b64(ct)};
+}
+async function recoveryOpen(v, rStr){
+  const r = b32dec(rStr);
+  if(r.length !== 32) throw new Error(tx('Återställningsnyckeln är ogiltig – kontrollera att alla tecken är med.'));
+  let o;
+  try{ o = JSON.parse(dec.decode(await crypto.subtle.decrypt({name:'AES-GCM', iv:unb64(v.rk.iv)}, await rkKek(r, unb64(v.rk.salt)), unb64(v.rk.ct)))); }
+  catch{ throw new Error(tx('Fel återställningsnyckel för den här datan.')); }
+  const k = await crypto.subtle.importKey('raw', unb64(o.k), {name:'AES-GCM'}, true, ['encrypt','decrypt']);
+  const pt = await crypto.subtle.decrypt({name:'AES-GCM', iv:unb64(v.iv)}, k, unb64(v.ct));
+  return {db:JSON.parse(dec.decode(pt)), key:k, salt:unb64(v.salt), mfa:v.mfa && o.kp ? {kid:v.mfa.kid, keyPart:unb64(o.kp)} : null};
 }
 async function decryptVault(v, pw, kp){
   const s = unb64(v.salt);
@@ -2009,7 +2060,7 @@ async function deriveMfa(pw, s, kp){
   const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits({name:'PBKDF2', salt:s, iterations:310000, hash:'SHA-256'}, base, 256);
   const hk = await crypto.subtle.importKey('raw', bits, 'HKDF', false, ['deriveKey']);
-  return crypto.subtle.deriveKey({name:'HKDF', hash:'SHA-256', salt:kp, info:enc.encode('netatlas-mfa-v1')}, hk, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+  return crypto.subtle.deriveKey({name:'HKDF', hash:'SHA-256', salt:kp, info:enc.encode('netatlas-mfa-v1')}, hk, {name:'AES-GCM', length:256}, true, ['encrypt','decrypt']);
 }
 
 /* ---------- State ---------- */
@@ -2193,6 +2244,7 @@ async function restoreLocked(v, label){
   return true;
 }
 async function forgotFlow(){
+  const vault = (() => { try{ return JSON.parse(vaultRaw()); }catch{ return null; } })();
   await detectHelper();
   let bks = null;
   if(HELPER){ try{ bks = await api('/api/backups?dir=' + encodeURIComponent(lsGet('itinv.ui.bkdir'))); }catch{} }
@@ -2202,6 +2254,10 @@ async function forgotFlow(){
     m.innerHTML = `<div class="card" style="width:min(560px,100%)">
       <h2>${tx('Glömt lösenordet?')}</h2>
       <p>${tx('All data är krypterad med huvudlösenordet och <b>går inte att låsa upp utan det</b> – varken av NetAtlas, hjälpprogrammet eller någon annan. Det finns ingen bakdörr. Du kan:')}</p>
+      ${vault?.rk ? `<h3 style="margin:14px 0 4px;font-size:14px">${tx('Lås upp med återställningsnyckeln')}</h3>
+      <p>${tx('Har du sparat återställningsnyckeln för valvet låser du upp med den och väljer sedan ett nytt huvudlösenord.')}</p>
+      <div class="inline"><input data-rk class="mono" placeholder="XXXX-XXXX-XXXX-…" autocomplete="off" spellcheck="false"><button class="primary" data-x="rk">${tx('Lås upp')}</button></div>
+      <div class="err" data-rkerr></div>` : ''}
       <h3 style="margin:14px 0 4px;font-size:14px">${tx('1. Återställa en äldre säkerhetskopia')}</h3>
       <p>${tx('Om du minns lösenordet som en kopia sparades med (t.ex. från innan du bytte lösenord). Allt som lagts till efter kopian försvinner.')}</p>
       ${bks?.backups?.length ? `<div style="max-height:180px;overflow:auto;margin-bottom:8px"><table style="width:100%;font-size:13px">${bks.backups.slice(0, 10).map(b => `<tr><td class="mono">${esc(b.name)}</td><td class="hint">${rel(b.mtime * 1000)}</td><td><button class="icon" data-rb="${esc(b.name)}">${tx('Återställ')}</button></td></tr>`).join('')}</table></div>` : ''}
@@ -2215,6 +2271,12 @@ async function forgotFlow(){
     m.onclick = async e => {
       const b = e.target.closest('[data-x],[data-rb]'); if(!b) return;
       if(b.dataset.x === 'back') return done();
+      if(b.dataset.x === 'rk'){
+        b.disabled = true;
+        try{ const r = await recoveryOpen(vault, m.querySelector('[data-rk]').value); m.onclick = null; res(r); }
+        catch(err){ m.querySelector('[data-rkerr]').textContent = err.message; b.disabled = false; }
+        return;
+      }
       if(b.dataset.x === 'reset'){ if(!await resetAll()) return; return; }
       if(b.dataset.rb){
         try{ const v = JSON.parse(await apiText(`/api/backup-get?dir=${encodeURIComponent(lsGet('itinv.ui.bkdir'))}&name=${encodeURIComponent(b.dataset.rb)}`)); m.onclick = null; if(!await restoreLocked(v, b.dataset.rb)) res(); }
@@ -2251,14 +2313,20 @@ async function start(){
     salt = crypto.getRandomValues(new Uint8Array(16));
     key = await derive(pw, salt);
     db = newDb();
+    settings().recovery = {key:newRecoveryKey(), created:Date.now()};
     await saveNow();
+    await recoveryModal(true);
   } else {
-    const v = JSON.parse(raw); let error = '', kp = null;
+    const v = JSON.parse(raw); let error = '', kp = null, recovered = false;
     if(v.mfa) await detectHelper();
     for(;;){
       const r = await pwModal({title:tx('Lås upp NetAtlas'), error, okText:tx('Lås upp'), forgot:true, hint:hintGet(), mfa:!!v.mfa, mfaOk:!!kp, lang:true});
       if(r === RELANG){ error = ''; continue; }
-      if(r === FORGOT){ await forgotFlow(); error = ''; continue; }
+      if(r === FORGOT){
+        const fr = await forgotFlow();
+        if(fr){ ({db, key, salt} = fr); MFA = fr.mfa; recovered = true; break; }
+        error = ''; continue;
+      }
       const pw = v.mfa ? r.pw : r; let usedRec = false;
       try{
         if(v.mfa && !kp){ usedRec = !!r.rec; kp = await getMfaKey(v.mfa.kid, r); }
@@ -2270,6 +2338,7 @@ async function start(){
         else{ error = usedRec ? tx('Fel lösenord eller återställningsnyckel.') : v.mfa ? tx('Fel lösenord (koden är godkänd – ange lösenordet igen).') : tx('Fel lösenord.'); if(usedRec) kp = null; }
       }
     }
+    if(recovered) await recoveryNewPassword();
   }
   migrate();
   cur.plan = db.plans[0].id;
@@ -2277,6 +2346,8 @@ async function start(){
   initUI(); renderAll(); fitView();
   document.body.classList.add('ready'); setView(VIEW);
   status(tx('Upplåst'));
+  // befintligt valv utan återställningsnyckel: erbjud en gång (påminnelsen ligger sedan kvar under Att göra)
+  if(!settings().recovery && !settings().recoveryAsked){ settings().recoveryAsked = Date.now(); save(); setTimeout(recoveryOffer, 700); }
 }
 
 /* ---------- Byte av språk utan att låsa: rita om allt som syns ---------- */
@@ -2918,6 +2989,79 @@ function login2faBlock(){
       (t.ex. Microsoft eller Google Authenticator) – då räcker det inte att någon får tag på lösenordet.`)}
       <div style="margin-top:8px"><button class="primary icon" data-g="l2faon">${tx('Aktivera…')}</button></div></div>`;
   return h + `<h4 class="subh">${tx('Valvet')}</h4>`;
+}
+
+/* ---------- Återställningsnyckel för valvet ---------- */
+function recText(k){
+  return `${tx('NetAtlas – återställningsnyckel för valvet')}\n${tx('Skapad {0}', new Date().toLocaleString(LOC))}\n\n    ${k}\n\n` +
+    `${tx('Öppnar valvet utan huvudlösenordet, t.ex. om du har glömt det: välj Glömt lösenordet? på upplåsningsrutan.\nGäller även säkerhetskopior som görs efter att nyckeln skapades.')}\n` +
+    `${tx('Förvara den säkert – t.ex. utskriven i ett kassaskåp eller i en annan lösenordshanterare.')}\n`;
+}
+function recoveryModal(fresh){
+  const k = settings().recovery.key;
+  return new Promise(res => {
+    const m = $('#modal');
+    m.innerHTML = `<div class="card" style="width:min(520px,100%)">
+      <h2>${tx('Spara återställningsnyckeln')}</h2>
+      <p>${tx('Med nyckeln kan du öppna valvet och välja ett nytt huvudlösenord om du glömmer det. <b>Den öppnar valvet utan lösenord</b> – förvara den som en reservnyckel: utskriven eller i en lösenordshanterare, inte bara på den här datorn.')}</p>
+      <code class="big rec">${esc(k)}</code>
+      <div class="inline" style="margin-top:6px;flex-wrap:wrap"><button class="icon" data-r="copy">⧉ ${tx('Kopiera')}</button><button class="icon" data-r="dl">⇩ ${tx('Spara som textfil')}</button><button class="icon" data-r="print">${tx('Skriv ut')}</button></div>
+      ${fresh ? `<label class="chk" style="margin-top:12px"><input type="checkbox" data-r="ok"> ${tx('Jag har sparat återställningsnyckeln på ett säkert ställe')}</label>` : ''}
+      <div class="actions"><button class="primary" data-r="done" ${fresh ? 'disabled' : ''}>${fresh ? tx('Klar') : tx('Stäng')}</button></div>
+    </div>`;
+    m.hidden = false;
+    m.onclick = e => {
+      const r = e.target.closest('[data-r]')?.dataset.r;
+      if(r === 'copy') copyText(k, true);
+      else if(r === 'dl') download('netatlas-valv-aterstallningsnyckel.txt', recText(k), 'text/plain');
+      else if(r === 'print'){ const w = window.open('', '_blank'); if(w){ w.document.write(`<pre style="font:16px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;padding:24px">${esc(recText(k))}</pre>`); w.document.close(); w.print(); } }
+      else if(r === 'ok') m.querySelector('[data-r="done"]').disabled = !e.target.checked;
+      else if(r === 'done'){ m.onclick = null; m.hidden = true; m.innerHTML = ''; res(); }
+    };
+  });
+}
+async function pwCheck(){
+  const pw = await pwModal({title:tx('Återställningsnyckel för valvet'), text:tx('Bekräfta med ditt huvudlösenord.'), cancel:true, okText:tx('Fortsätt')});
+  if(!pw) return false;
+  try{ await decryptVault(JSON.parse(vaultRaw()), pw, MFA?.keyPart); return true; }catch{ alert(tx('Fel lösenord.')); return false; }
+}
+async function recoveryCreate(){
+  settings().recovery = {key:newRecoveryKey(), created:Date.now()};
+  await saveNow(); await recoveryModal(true);
+  renderTodoBadge(); if(gKind === 'set') renderG(); doBackup(false);
+}
+async function recoveryOffer(){
+  if(settings().recovery) return;
+  if(confirm(tx('Skapa en återställningsnyckel för valvet?\n\nMed den kan du låsa upp och välja ett nytt huvudlösenord om du glömmer det. Utan den går datan inte att låsa upp – inte ens av den som sköter servern.'))) await recoveryCreate();
+}
+async function recoveryNew(){
+  if(!await pwCheck()) return;
+  if(!confirm(tx('Skapa en ny återställningsnyckel? Den gamla slutar gälla för valvet (säkerhetskopior som redan gjorts kan fortfarande öppnas med den).'))) return;
+  await recoveryCreate();
+}
+async function recoveryShow(){ if(await pwCheck()) await recoveryModal(false); }
+// import/återställning av en säkerhetskopia: den nuvarande återställningsnyckeln (som användaren har sparat) gäller fortfarande
+function adoptDb(n){
+  const rec = db.settings?.recovery;
+  db = n; migrate();
+  if(rec) settings().recovery = rec; else delete settings().recovery;
+}
+function recoveryBlock(){
+  const R = settings().recovery;
+  if(R) return `<p>🔑 ${tx`<b>Återställningsnyckel</b> skapad ${new Date(R.created).toLocaleDateString(LOC)} – öppnar valvet om du glömmer huvudlösenordet.`}
+    <button class="icon" data-g="recshow">${tx('Visa…')}</button> <button class="icon" data-g="recnew">${tx('Skapa ny…')}</button></p>`;
+  return `<div class="callout">${tx('<b>Skapa en återställningsnyckel</b> Glömmer du huvudlösenordet går datan annars inte att låsa upp – inte ens av den som sköter servern.')}
+    <div style="margin-top:8px"><button class="primary icon" data-g="reccreate">${tx('Skapa…')}</button></div></div>`;
+}
+// efter upplåsning med återställningsnyckeln: välj ett nytt huvudlösenord (nyckeln fortsätter att gälla)
+async function recoveryNewPassword(){
+  let pw;
+  do pw = await pwModal({title:tx('Välj nytt huvudlösenord'), text:tx('Valvet är upplåst med återställningsnyckeln. Välj ett nytt huvudlösenord – återställningsnyckeln fortsätter att gälla.'), confirm:true, okText:tx('Spara'), hintField:true});
+  while(typeof pw !== 'string' || pw === RELANG || pw === FORGOT);
+  hintSet(pwModal.lastHint || '');
+  const oldKey = key; salt = crypto.getRandomValues(new Uint8Array(16));
+  key = MFA ? await deriveMfa(pw, salt, MFA.keyPart) : await derive(pw, salt);
+  await saveNow(); await reencryptFiles(oldKey);
 }
 
 /* ---------- Tvåstegsinloggning (MFA) ---------- */
@@ -4047,7 +4191,7 @@ async function importVault(v, label){
   const r = await promptDecrypt(v, {title:tx('Återställ'), text:tx`Ange lösenordet som <b>${esc(label)}</b> sparades med.`, okText:tx('Återställ')});
   if(!r) return;
   if(!confirm(tx`Ersätta nuvarande data (${db.devices.length} enheter) med kopians (${r.db.devices.length} enheter)?`)) return;
-  db = r.db; migrate(); cur.plan = db.plans[0].id; cur.sel = null; await saveNow(); resetUndo(); renderAll(); fitView(); status(tx('Återställd från {0}', label));
+  adoptDb(r.db); cur.plan = db.plans[0].id; cur.sel = null; await saveNow(); resetUndo(); renderAll(); fitView(); status(tx('Återställd från {0}', label));
 }
 async function restoreBackup(name){
   try{ const v = JSON.parse(await apiText(`/api/backup-get?dir=${encodeURIComponent(settings().backupDir || '')}&name=${encodeURIComponent(name)}`)); closeG(); await importVault(v, name); }
@@ -4130,6 +4274,7 @@ function todos(){
     const st = settings(), lb = st.lastBackup;
     if(st.autoBackup === false && (!lb || now - lb > 7 * 864e5)) add('bkoff', 'med', lb ? tx`Automatisk säkerhetskopiering är avstängd – senaste kopian ${rel(lb)}` : tx('Automatisk säkerhetskopiering är avstängd'), {set:1});
     else if(lb && now - lb > 3 * 864e5) add('bkold', 'med', tx`Senaste säkerhetskopian gjordes ${rel(lb)}`, {set:1});
+    if(!st.recovery) add('norec', 'med', tx('Ingen återställningsnyckel för valvet – glömmer du huvudlösenordet går datan inte att låsa upp'), {set:1});
   }
   const C = settings().cloud;
   if(HELPER && C?.type){
@@ -4267,6 +4412,7 @@ function settingsView(){
   <div class="jcard"><h3 style="margin-top:0">${tx('Säkerhet')}</h3>
     ${login2faBlock()}
     ${mfaBlock()}
+    ${recoveryBlock()}
     <label class="chk"><input type="checkbox" data-set="clipKeep" ${S.clipKeep ? 'checked' : ''}> ${tx('Behåll kopierade lösenord i urklipp (annars rensas de efter 30 sekunder)')}</label>
     <label class="chk"><input type="checkbox" data-set="hibpAuto" ${S.hibpAuto ? 'checked' : ''}> ${tx('Kontrollera lösenorden mot kända dataläckor (Have I Been Pwned) en gång i veckan')}</label>
     <p class="hint">${tx('Bara de fem första tecknen av ett SHA-1-hashvärde skickas – aldrig lösenordet.')} ${S.hibpAt ? tx`Senaste kontroll ${rel(S.hibpAt)}.` + ' ' : ''}<button class="icon" data-g="hibp">${tx('Kontrollera nu')}</button></p>
@@ -4907,6 +5053,9 @@ function initUI(){
     }
     else if(g === 'mobstop'){ try{ await apiPost('/api/mobile/stop', {}); }catch{} mob.share = null; renderG(); status(tx('Delningen stoppad')); }
     else if(g === 'mfaon') mfaStart();
+    else if(g === 'reccreate') recoveryCreate();
+    else if(g === 'recshow') recoveryShow();
+    else if(g === 'recnew') recoveryNew();
     else if(g === 'mfaconfirm') mfaConfirm(t);
     else if(g === 'mfaoff') mfaOff();
     else if(g === 'l2faon'){
@@ -5097,7 +5246,7 @@ function initUI(){
     const r = await promptDecrypt(v, {title:tx('Importera'), text:tx`Ange lösenordet som <b>${esc(file.name)}</b> exporterades med.`, okText:tx('Importera')});
     if(!r) return;
     if(!confirm(tx`Ersätta nuvarande data (${db.devices.length} enheter) med filens (${r.db.devices.length} enheter)?`)) return;
-    db = r.db; migrate(); cur.plan = db.plans[0].id; cur.sel = null; await saveNow(); resetUndo(); renderAll(); fitView(); status(tx('Importerad'));
+    adoptDb(r.db); cur.plan = db.plans[0].id; cur.sel = null; await saveNow(); resetUndo(); renderAll(); fitView(); status(tx('Importerad'));
   };
   $('#btnCsv').onclick = () => {
     const cols=[tx('Plats'),tx('Plan'),tx('Rum'),tx('Typ'),tx('Namn'),tx('Tillverkare'),tx('Modell'),tx('Värdnamn'),'IP','MAC','VLAN','Firmware',tx('Serienummer'),tx('Placering'),tx('Inköpt'),tx('Garanti'),tx('Admin-URL'),tx('Konton (användare)'),tx('Tjänster & databaser'),tx('Anteckningar')];
