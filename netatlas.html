@@ -1355,6 +1355,11 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}
   "Dölj": "Hide",
   "Inget att åtgärda just nu. 🎉": "Nothing to fix right now. 🎉",
   "{0} dolda punkter": "Hidden items: {0}",
+  "Känd och accepterad – visas inte igen (kan ångras längst ner)": "Known and accepted – not shown again (can be undone at the bottom)",
+  "Kvittera": "Acknowledge",
+  "Kvitterade ({0})": "Acknowledged ({0})",
+  "Kvitterad {0}": "Acknowledged {0}",
+  "Ångra": "Undo",
   "Visa igen": "Show again",
   "Senaste händelser (live)": "Recent events (Live)",
   "Slå på <b>● Live<\/b> för att följa vilka enheter som svarar och få larm.": "Turn on <b>● Live<\/b> to follow which devices respond and get alarms.",
@@ -4072,8 +4077,8 @@ function jobInterval(s){
   return null;
 }
 function todos(){
-  const out = [], now = Date.now(), ig = db.ignored || {};
-  const add = (key, sev, text, go, act) => { if(!(ig[key] > now)) out.push({key, sev, text, go, act}); };
+  const out = [], now = Date.now(), ig = db.ignored || {}, ak = db.acked || {};
+  const add = (key, sev, text, go, act) => { if(!(ig[key] > now) && !ak[key]) out.push({key, sev, text, go, act}); };
   const nmOf = d => `<b>${esc(d.name || tx('(namnlös)'))}</b>${db.sites.length > 1 ? ` <span class="hint">(${esc(devSite(d).name)})</span>` : ''}`;
   const byIp = {};
   for(const d of db.devices){
@@ -4202,11 +4207,13 @@ function todoView(){
   let h = '';
   for(const sv of ['high','med','low']){
     const xs = gTodos.map((t, i) => [t, i]).filter(([t]) => t.sev === sv); if(!xs.length) continue;
-    h += `<h3 class="todoh" style="color:${L[sv][1]}">${L[sv][0]} (${xs.length})</h3>` + xs.map(([t, i]) => `<div class="todo"><span class="sv" style="background:${L[sv][1]}"></span><div class="tx">${t.text}</div>${t.act ? `<button class="icon" data-g="${t.act.g}" data-k="${esc(t.act.k)}" title="${tx('Markera som känd – larmas inte mer')}">${esc(t.act.label)}</button>` : ''}${t.go ? `<button class="icon" data-g="go" data-i="${i}">${tx('Visa')}</button>` : ''}<button class="icon" data-g="ign" data-i="${i}" title="${tx('Dölj i 30 dagar')}">${tx('Dölj')}</button></div>`).join('');
+    h += `<h3 class="todoh" style="color:${L[sv][1]}">${L[sv][0]} (${xs.length})</h3>` + xs.map(([t, i]) => `<div class="todo"><span class="sv" style="background:${L[sv][1]}"></span><div class="tx">${t.text}</div>${t.act ? `<button class="icon" data-g="${t.act.g}" data-k="${esc(t.act.k)}" title="${tx('Markera som känd – larmas inte mer')}">${esc(t.act.label)}</button>` : ''}${t.go ? `<button class="icon" data-g="go" data-i="${i}">${tx('Visa')}</button>` : ''}<button class="icon" data-g="ack1" data-i="${i}" title="${tx('Känd och accepterad – visas inte igen (kan ångras längst ner)')}">✓ ${tx('Kvittera')}</button><button class="icon" data-g="ign" data-i="${i}" title="${tx('Dölj i 30 dagar')}">${tx('Dölj')}</button></div>`).join('');
   }
   if(!h) h = `<p class="hint" style="padding:16px 0">${tx('Inget att åtgärda just nu. 🎉')}</p>`;
   const ign = Object.values(db.ignored || {}).filter(x => x > Date.now()).length;
   if(ign) h += `<p class="hint">${tx`${ign} dolda punkter`} · <span class="lk" data-g="unign">${tx('Visa igen')}</span></p>`;
+  const acked = Object.entries(db.acked || {}).sort((a, b) => b[1].t - a[1].t);
+  if(acked.length) h += `<details class="sec"><summary><h3>${tx`Kvitterade (${acked.length})`}</h3></summary>${acked.map(([k, a]) => `<div class="todo"><span class="sv" style="background:var(--ok)"></span><div class="tx">${a.text}<div class="hint">${tx('Kvitterad {0}', new Date(a.t).toLocaleDateString(LOC))}</div></div><button class="icon" data-g="unack" data-k="${esc(k)}">${tx('Ångra')}</button></div>`).join('')}</details>`;
   const evs = (db.events || []).slice(-30).reverse();
   if(evs.length) h += `<h3 class="todoh">${tx('Senaste händelser (live)')}</h3>` + evs.map(e => { const d = dev(e.devId); return `<div class="jline" ${d ? `data-g="godev" data-id="${d.id}"` : ''}><span class="jdot ${e.up?'on':'down'}"></span>${d ? '<b>' + esc(d.name) + '</b> – ' : ''}${evText(e)}<span class="hint">${new Date(e.t).toLocaleString(LOC)} · ${rel(e.t)}</span></div>`; }).join('');
   if(!liveOn) h += `<p class="hint" style="margin-top:12px">${tx('Slå på <b>● Live</b> för att följa vilka enheter som svarar och få larm.')}</p>`;
@@ -4871,6 +4878,8 @@ function initUI(){
     }
     else if(g === 'ign'){ const x = gTodos[+t.dataset.i]; if(!x) return; (db.ignored = db.ignored || {})[x.key] = Date.now() + 30 * 864e5; save(); renderG(); renderTodoBadge(); }
     else if(g === 'unign'){ db.ignored = {}; save(); renderG(); renderTodoBadge(); }
+    else if(g === 'ack1'){ const x = gTodos[+t.dataset.i]; if(!x) return; (db.acked = db.acked || {})[x.key] = {t:Date.now(), text:x.text}; save(); renderG(); renderTodoBadge(); }
+    else if(g === 'unack'){ if(db.acked) delete db.acked[t.dataset.k]; save(); renderG(); renderTodoBadge(); }
     else if(g === 'godev'){ closeG(); gotoDev(t.dataset.id); }
     else if(g === 'backup'){ t.disabled = true; t.textContent = tx('Sparar…'); await doBackup(true); renderG(); }
     else if(g === 'restore') restoreBackup(t.dataset.name);
