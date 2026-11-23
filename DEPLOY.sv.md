@@ -211,6 +211,8 @@ lägg till Tailscale-namnet. Vill du hellre ha en publik adress utan Tailscale? 
 
 | Problem | Lösning |
 |---|---|
+| Glömt användarnamn eller lösenord för inloggningen | De står som `APP_USER`/`APP_PASSWORD` i `.env` (standardanvändare `admin`). Ändra där och kör `docker compose up -d`. |
+| Glömt huvudlösenordet | Upplåsningsrutan → *Glömt lösenordet?* → *Lås upp med återställningsnyckeln* (skapas med valvet, eller under *Inställningar → Säkerhet*). Utan nyckeln – eller en äldre säkerhetskopia vars lösenord du minns – går valvet inte att öppna, inte ens av den som sköter servern. |
 | "Webbläsaren saknar Web Crypto" | Du använder `http://`. Gå till `https://`. |
 | Containern startar om hela tiden | `docker compose logs app` – t.ex. saknas `APP_PASSWORD` eller `APP_SECRET`. |
 | Behörighetsfel i appdata | Kontrollera `PUID`/`PGID` i `.env` (Unraid: 99/100). |

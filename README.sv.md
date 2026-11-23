@@ -40,6 +40,8 @@ Manuell installation, uppdatering och backup: se [DEPLOY.sv.md](DEPLOY.sv.md).
 
 - Allt känsligt krypteras i webbläsaren (AES-GCM, nyckel från huvudlösenordet via PBKDF2) innan det sparas –
   varken hjälpprogrammet, servern eller databasen ser klartext.
+- En **återställningsnyckel** (visas när valvet skapas) öppnar valvet om du glömmer huvudlösenordet. Förvara den
+  som en reservnyckel – utan den kan ingen återställa ett glömt huvudlösenord.
 - Lokalt lyssnar hjälpprogrammet bara på 127.0.0.1. På servern krävs inloggning och HTTPS.
 - Repot innehåller inga lösenord, planritningar eller annan personlig data. `.env` checkas aldrig in.
 

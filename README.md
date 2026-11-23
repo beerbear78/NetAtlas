@@ -40,6 +40,8 @@ two-factor authentication. On Unraid it shows up under *Compose* in the Docker t
 
 - Everything sensitive is encrypted in the browser (AES-GCM, key derived from the master password with PBKDF2)
   before it is saved – neither the helper, the server nor the database ever sees plain text.
+- A **recovery key** (shown when the vault is created) opens the vault if you forget the master password. Keep it
+  like a spare key – without it, a forgotten master password cannot be recovered by anyone.
 - Locally the helper only listens on 127.0.0.1. On the server, sign-in and HTTPS are required.
 - The repository contains no passwords, floor plans or other personal data. `.env` is never committed.
 

@@ -215,6 +215,8 @@ and set `LOGIN_2FA=required`.
 
 | Problem | Solution |
 |---|---|
+| Forgot the sign-in username or password | They are `APP_USER`/`APP_PASSWORD` in `.env` (default user `admin`). Change them there and run `docker compose up -d`. |
+| Forgot the master password | Unlock screen → *Forgot the password?* → *Unlock with the recovery key* (created when the vault is created, or under *Settings → Security*). Without the key – or an older backup whose password you remember – the vault cannot be opened, not even by whoever runs the server. |
 | "This browser lacks Web Crypto" | You are using `http://`. Go to `https://`. |
 | The container keeps restarting | `docker compose logs app` – e.g. `APP_PASSWORD` or `APP_SECRET` is missing. |
 | Permission errors in appdata | Check `PUID`/`PGID` in `.env` (Unraid: 99/100). |
